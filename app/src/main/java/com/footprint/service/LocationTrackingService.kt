@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class LocationTrackingService : Service(), AMapLocationListener {
 
     private var locationClient: AMapLocationClient? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     companion object {
         const val NOTIFICATION_ID = 1001
@@ -57,6 +58,25 @@ class LocationTrackingService : Service(), AMapLocationListener {
     override fun onCreate() {
         super.onCreate()
         initLocationClient()
+        
+        serviceScope.launch {
+            val app = applicationContext as com.footprint.FootprintApplication
+            val startOfDay = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            
+            app.repository.getTrackPoints(startOfDay, Long.MAX_VALUE).collect { points ->
+                val locations = points.map { entity ->
+                    AMapLocation("gps").apply {
+                        latitude = entity.latitude
+                        longitude = entity.longitude
+                        speed = entity.speed
+                        accuracy = entity.accuracy
+                        altitude = entity.altitude
+                        time = entity.timestamp
+                    }
+                }
+                _sharedTrackingPath.value = locations
+            }
+        }
     }
 
     private fun initLocationClient() {
@@ -105,9 +125,15 @@ class LocationTrackingService : Service(), AMapLocationListener {
                 if (location.latitude > 1.0 && location.longitude > 1.0) {
                     _sharedCurrentLocation.value = location
                     if (_sharedIsTracking.value) {
-                        val path = _sharedTrackingPath.value.toMutableList()
-                        path.add(location)
-                        _sharedTrackingPath.value = path
+                        // 2. 持久化存储 (DB) - UI会在Flow收集器中自动更新
+                        serviceScope.launch {
+                            try {
+                                val app = applicationContext as com.footprint.FootprintApplication
+                                app.repository.saveTrackPoint(location)
+                            } catch (e: Exception) {
+                                Log.e("FootprintLoc", "Failed to save point: ${e.message}")
+                            }
+                        }
                     }
                     Log.d("FootprintLoc", "坐标获取成功: ${location.latitude}, ${location.longitude}")
                 }
@@ -126,16 +152,18 @@ class LocationTrackingService : Service(), AMapLocationListener {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("正在探索世界")
-            .setContentText("已捕获点位: $count")
+            .setContentText("正在后台记录你的轨迹...")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
             .build()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+    
     override fun onDestroy() {
         locationClient?.stopLocation()
         locationClient?.onDestroy()
+        serviceScope.cancel()
         super.onDestroy()
     }
 }

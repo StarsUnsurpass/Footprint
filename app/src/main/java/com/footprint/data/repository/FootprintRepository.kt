@@ -17,6 +17,7 @@ import java.time.LocalDate
 class FootprintRepository(
     private val footprintDao: FootprintDao,
     private val travelGoalDao: TravelGoalDao,
+    private val trackPointDao: com.footprint.data.local.TrackPointDao
 ) {
 
     private val ioScope = CoroutineScope(Dispatchers.IO)
@@ -26,6 +27,24 @@ class FootprintRepository(
 
     fun observeGoals(): Flow<List<TravelGoal>> =
         travelGoalDao.observeGoals().map { list -> list.map { it.toModel() } }
+
+    // --- Tracking ---
+    suspend fun saveTrackPoint(location: com.amap.api.location.AMapLocation) {
+        val entity = com.footprint.data.local.TrackPointEntity(
+            latitude = location.latitude,
+            longitude = location.longitude,
+            timestamp = location.time,
+            speed = location.speed,
+            accuracy = location.accuracy,
+            altitude = location.altitude
+        )
+        trackPointDao.insert(entity)
+    }
+
+    fun getTrackPoints(startTime: Long, endTime: Long): Flow<List<com.footprint.data.local.TrackPointEntity>> {
+        return trackPointDao.getPointsInRange(startTime, endTime)
+    }
+    // ----------------
 
     suspend fun saveEntry(entry: FootprintEntry) {
         footprintDao.upsert(entry.toEntity())

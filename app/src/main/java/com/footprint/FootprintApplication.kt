@@ -20,6 +20,10 @@ class FootprintApplication : Application() {
         AMapLocationClient.updatePrivacyAgree(this, true)
 
         val database = FootprintDatabase.getInstance(this)
-        repository = FootprintRepository(database.footprintDao(), database.travelGoalDao())
+        repository = FootprintRepository(
+            database.footprintDao(), 
+            database.travelGoalDao(),
+            database.trackPointDao()
+        )
     }
 }

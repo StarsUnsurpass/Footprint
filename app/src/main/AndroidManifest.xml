@@ -26,10 +26,10 @@
         android:theme="@style/Theme.Footprint">
 
         <!-- 高德地图 API Key -->
-        <!-- 用户需要在应用内自行配置 -->
+        <!-- 自动从 local.properties 读取，不泄露至 GitHub -->
         <meta-data
             android:name="com.amap.api.v2.apikey"
-            android:value="DUMMY_KEY_PLEASE_CONFIGURE_IN_APP" />
+            android:value="${AMAP_KEY}" />
 
         <activity
             android:name=".MainActivity"

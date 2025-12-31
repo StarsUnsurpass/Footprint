@@ -47,7 +47,6 @@ fun MapScreen() {
     DisposableEffect(lifecycle, mapView) {
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_CREATE -> mapView.onCreate(Bundle())
                 Lifecycle.Event.ON_RESUME -> mapView.onResume()
                 Lifecycle.Event.ON_PAUSE -> mapView.onPause()
                 Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
@@ -55,6 +54,14 @@ fun MapScreen() {
             }
         }
         lifecycle.addObserver(lifecycleObserver)
+        
+        // 关键修复：手动调用 onCreate，防止因生命周期错位导致白屏
+        mapView.onCreate(Bundle())
+        // 如果当前已经在前台（例如从其他页面返回或首次加载时已 RESUMED），补调 onResume
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            mapView.onResume()
+        }
+
         onDispose {
             lifecycle.removeObserver(lifecycleObserver)
             mapView.onDestroy()

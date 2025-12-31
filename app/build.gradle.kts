@@ -41,8 +41,9 @@ android {
             )
         }
         debug {
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
+            // 移除后缀，确保包名与高德后台配置 ("com.footprint") 一致
+            // applicationIdSuffix = ".debug"
+            // versionNameSuffix = "-debug"
         }
     }
 

@@ -86,8 +86,8 @@
 | :--- | :--- | :--- |
 | **地图白屏/黑屏** | Jetpack Compose 的 `AndroidView` 与高德 `MapView` 生命周期不同步。当 Compose 首次渲染时，Activity 可能已过 `ON_CREATE`，导致地图 OpenGL 上下文未初始化。 | 在 `DisposableEffect` 中显式手动调用 `mapView.onCreate()`，并根据当前 Lifecycle 状态自动补偿 `onResume()`。 |
 | **定位错误 7 (鉴权失败)** | `build.gradle.kts` 配置中 `debug` 类型包含 `applicationIdSuffix = ".debug"`。这导致调试版包名变为 `com.footprint.debug`，与高德后台注册的 `com.footprint` 不匹配，触发安全拦截。 | 移除 `applicationIdSuffix` 配置，确保 Debug 和 Release 版本包名严格一致 (`com.footprint`)。 |
-| **Key 设置后不生效** | SDK 的 `MapsInitializer` 和 `LocationClient` 默认只在应用启动时读取一次 Key，运行时更新未触发重新初始化。 | 在用户保存 Key 的瞬间，代码级强制调用 SDK 的 `setApiKey` 接口，实现配置即时生效无需重启。 |
-| **定位一直请求中** | 错误信息被吞没，用户不知道是权限、网络还是 Key 的问题。 | 增加错误码拦截机制，在主线程弹出 Toast 明确提示错误类型（如“Error 7: 包名不匹配”或“Error 12: 缺权限”）。 |
+| **Key 设置后不生效** | SDK 的 `MapsInitializer` 和 `LocationClient` 默认只在应用启动时读取一次 Key，运行时更新未触发重新初始化。 | 在保存 Key 的瞬间，代码级强制调用 SDK 的 `setApiKey` 接口，实现配置即时生效无需重启。 |
+| **定位一直请求中** | 错误信息被吞没，权限、网络还是 Key 的问题。 | 增加错误码拦截机制，在主线程弹出 Toast 明确提示错误类型（如“Error 7: 包名不匹配”或“Error 12: 缺权限”）。 |
 
 ---
 

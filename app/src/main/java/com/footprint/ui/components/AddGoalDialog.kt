@@ -30,14 +30,18 @@ import java.time.ZoneId
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddGoalDialog(
+    initialGoal: com.footprint.data.model.TravelGoal? = null,
     onDismiss: () -> Unit,
     onSave: (GoalDraft) -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("想要达成的体验…") }
+    var title by remember { mutableStateOf(initialGoal?.title ?: "") }
+    var location by remember { mutableStateOf(initialGoal?.targetLocation ?: "") }
+    var notes by remember { mutableStateOf(initialGoal?.notes ?: "想要达成的体验…") }
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState(System.currentTimeMillis())
+    val datePickerState = rememberDatePickerState(
+        initialGoal?.targetDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+            ?: System.currentTimeMillis()
+    )
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -55,7 +59,7 @@ fun AddGoalDialog(
 
     val selectedDate = datePickerState.selectedDateMillis?.let {
         Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
-    } ?: LocalDate.now().plusWeeks(2)
+    } ?: (initialGoal?.targetDate ?: LocalDate.now().plusWeeks(2))
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         GlassMorphicCard(
@@ -67,7 +71,7 @@ fun AddGoalDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "创建旅程目标",
+                    text = if (initialGoal != null) "编辑旅程目标" else "创建旅程目标",
                     style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                 )

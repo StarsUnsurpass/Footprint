@@ -12,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,13 +34,26 @@ fun FootprintApp() {
     var showEntryDialog by remember { mutableStateOf(false) }
     var editingEntry by remember { mutableStateOf<com.footprint.data.model.FootprintEntry?>(null) }
     var showGoalDialog by remember { mutableStateOf(false) }
+    var editingGoal by remember { mutableStateOf<com.footprint.data.model.TravelGoal?>(null) }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination?.route
+    
+    val isBlurActive = showEntryDialog || editingEntry != null || showGoalDialog || editingGoal != null
 
     Scaffold(
+        modifier = Modifier.then(
+            if (isBlurActive) {
+                Modifier
+                    .blur(16.dp)
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(Color.White.copy(alpha = 0.3f)) // Add overlay to improve legibility of dialogs
+                    }
+            } else Modifier
+        ),
         floatingActionButton = {
-            if (currentDestination != "map") {
+            if (currentDestination != "map" && currentDestination != "export_trace") {
                 ExtendedFloatingActionButton(
                     onClick = { showEntryDialog = true },
                     icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
@@ -47,43 +62,45 @@ fun FootprintApp() {
             }
         },
         bottomBar = {
-            // 液态玻璃底部栏
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 20.dp)
-                    .height(72.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp
+            if (currentDestination != "export_trace") {
+                // 液态玻璃底部栏
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 20.dp)
+                        .height(72.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
                 ) {
-                    FootprintTab.entries.forEach { tab ->
-                        val selected = currentDestination == tab.route
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { 
-                                Icon(
-                                    tab.icon, 
-                                    contentDescription = tab.label,
-                                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                                ) 
-                            },
-                            label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    NavigationBar(
+                        containerColor = Color.Transparent,
+                        tonalElevation = 0.dp
+                    ) {
+                        FootprintTab.entries.forEach { tab ->
+                            val selected = currentDestination == tab.route
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    navController.navigate(tab.route) {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = {
+                                    Icon(
+                                        tab.icon,
+                                        contentDescription = tab.label,
+                                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                    )
+                                },
+                                label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -106,7 +123,15 @@ fun FootprintApp() {
                     onSearch = viewModel::updateSearch,
                     onYearShift = viewModel::shiftYear,
                     onMoodSelected = viewModel::toggleMoodFilter,
-                    onCreateGoal = { showGoalDialog = true }
+                    onCreateGoal = { showGoalDialog = true },
+                    onExportTrace = { navController.navigate("export_trace") },
+                    onEditEntry = { editingEntry = it }
+                )
+            }
+            composable("export_trace") {
+                ExportTraceScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable("map") { MapScreen() }
@@ -124,7 +149,8 @@ fun FootprintApp() {
                     goals = uiState.goals,
                     summary = uiState.summary,
                     onToggleGoal = viewModel::toggleGoal,
-                    onAddGoal = { showGoalDialog = true }
+                    onAddGoal = { showGoalDialog = true },
+                    onEditGoal = { editingGoal = it }
                 )
             }
         }
@@ -169,12 +195,26 @@ fun FootprintApp() {
         )
     }
 
-    if (showGoalDialog) {
+    if (showGoalDialog || editingGoal != null) {
         AddGoalDialog(
-            onDismiss = { showGoalDialog = false },
-            onSave = { goal ->
-                viewModel.addGoal(goal.title, goal.location, goal.date, goal.notes)
+            initialGoal = editingGoal,
+            onDismiss = { 
                 showGoalDialog = false
+                editingGoal = null
+            },
+            onSave = { goal ->
+                if (editingGoal != null) {
+                    viewModel.updateGoal(editingGoal!!.copy(
+                        title = goal.title,
+                        targetLocation = goal.location,
+                        targetDate = goal.date,
+                        notes = goal.notes
+                    ))
+                } else {
+                    viewModel.addGoal(goal.title, goal.location, goal.date, goal.notes)
+                }
+                showGoalDialog = false
+                editingGoal = null
             }
         )
     }

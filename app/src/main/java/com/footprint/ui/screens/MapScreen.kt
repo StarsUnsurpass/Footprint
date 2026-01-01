@@ -18,6 +18,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -105,7 +107,21 @@ fun MapScreen() {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFE0E0E0))) { // 增加背景色，区分是地图黑屏还是View没加载
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFE0E0E0))
+            .then(
+                if (showApiKeyDialog) {
+                    Modifier
+                        .blur(16.dp)
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(Color.White.copy(alpha = 0.3f))
+                        }
+                } else Modifier
+            )
+    ) { // 增加背景色，区分是地图黑屏还是View没加载
         if (hasPermission) {
             AndroidView(
                 factory = { ctx ->

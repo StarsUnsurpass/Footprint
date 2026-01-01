@@ -138,16 +138,22 @@ class LocationTrackingService : Service(), AMapLocationListener {
                     Log.d("FootprintLoc", "坐标获取成功: ${location.latitude}, ${location.longitude}")
                 }
             } else {
-                val errText = when (location.errorCode) {
-                    7 -> "Key鉴权失败：请检查高德后台包名是否为 com.footprint"
-                    10 -> "无法获取位置：请检查网络或GPS是否开启"
-                    12 -> "缺少定位权限：请在设置中授予权限"
-                    else -> "定位错误: ${location.errorCode} - ${location.errorInfo}"
-                }
+                val errText = "定位错误: ${location.errorCode} - ${location.errorInfo}"
                 Log.e("FootprintLoc", errText)
-                // 在主线程弹 Toast 方便调试
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    android.widget.Toast.makeText(applicationContext, errText, android.widget.Toast.LENGTH_LONG).show()
+                
+                // 仅针对需要用户干预的关键错误弹 Toast (7=Key鉴权失败, 12=缺权限)
+                // 忽略错误 10 (网络/GPS不稳定)，避免在弱网环境下频繁弹窗打扰用户
+                if (location.errorCode == 7 || location.errorCode == 12) {
+                    val userMsg = when (location.errorCode) {
+                        7 -> "Key鉴权失败：请检查高德后台包名是否为 com.footprint"
+                        12 -> "缺少定位权限：请在设置中授予权限"
+                        else -> ""
+                    }
+                    if (userMsg.isNotEmpty()) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            android.widget.Toast.makeText(applicationContext, userMsg, android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
             }
         }

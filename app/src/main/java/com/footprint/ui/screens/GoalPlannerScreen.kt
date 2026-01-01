@@ -1,5 +1,6 @@
 package com.footprint.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,8 @@ fun GoalPlannerScreen(
     goals: List<TravelGoal>,
     summary: FootprintSummary,
     onToggleGoal: (TravelGoal) -> Unit,
-    onAddGoal: () -> Unit
+    onAddGoal: () -> Unit,
+    onEditGoal: (TravelGoal) -> Unit
 ) {
     val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
     
@@ -57,7 +59,7 @@ fun GoalPlannerScreen(
     
             goals.forEach { goal ->
                 GlassMorphicCard(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().clickable { onEditGoal(goal) },
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {

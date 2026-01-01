@@ -31,11 +31,11 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TimelineScreen(
     modifier: Modifier = Modifier,
-    entries: List<FootprintEntry>,
-    filterState: FilterState,
+    entries: List<com.footprint.data.model.FootprintEntry>,
+    filterState: com.footprint.ui.state.FilterState,
     onMoodFilterChange: (Mood?) -> Unit,
     onSearch: (String) -> Unit,
-    onEditEntry: (FootprintEntry) -> Unit
+    onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf(filterState.searchQuery) }
     val grouped = entries.groupBy { it.happenedOn.withDayOfMonth(1) }

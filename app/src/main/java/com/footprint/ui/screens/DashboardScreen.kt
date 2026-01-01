@@ -1,6 +1,8 @@
 package com.footprint.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,8 +16,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -32,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +46,7 @@ import com.footprint.data.model.Mood
 import com.footprint.ui.state.FootprintUiState
 import com.footprint.ui.components.AppBackground
 import com.footprint.ui.components.GlassMorphicCard
+import com.footprint.ui.components.AboutDialog
 import java.text.DecimalFormat
 import java.time.format.DateTimeFormatter
 
@@ -49,11 +57,17 @@ fun DashboardScreen(
     onSearch: (String) -> Unit,
     onYearShift: (Int) -> Unit,
     onMoodSelected: (Mood?) -> Unit,
-    onCreateGoal: () -> Unit
+    onCreateGoal: () -> Unit,
+    onExportTrace: () -> Unit,
+    onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit
 ) {
     val scrollState = rememberScrollState()
     var query by rememberSaveable { mutableStateOf(state.filterState.searchQuery) }
     val df = remember { DecimalFormat("0.0") }
+
+    var showMenu by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
 
     AppBackground(modifier = modifier) {
         Column(
@@ -62,11 +76,41 @@ fun DashboardScreen(
                 .padding(horizontal = 16.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = "年度·月度足迹雷达",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "年度·月度足迹雷达",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Box {
+                    androidx.compose.material3.IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("反馈") },
+                            onClick = {
+                                showMenu = false
+                                uriHandler.openUri("https://github.com/StarsUnsurpass/Footprint/issues")
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("关于") },
+                            onClick = {
+                                showMenu = false
+                                showAboutDialog = true
+                            }
+                        )
+                    }
+                }
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = {
@@ -76,6 +120,53 @@ fun DashboardScreen(
                 label = { Text("搜索地点/标签/故事") },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // History Trace Card
+            GlassMorphicCard(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onExportTrace)
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "历史足迹",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "回放你的时空轨迹",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             YearNavigator(
                 year = state.filterState.year,
@@ -102,10 +193,14 @@ fun DashboardScreen(
 
             MoodDistributionSection(mood = state.summary.yearly.dominantMood, onMoodSelected = onMoodSelected)
 
-            RecentFootprintsSection(entries = state.entries.take(3), onCreateGoal = onCreateGoal)
+            RecentFootprintsSection(entries = state.entries.take(3), onCreateGoal = onCreateGoal, onEditEntry = onEditEntry)
             
             Spacer(modifier = Modifier.height(80.dp)) // Bottom padding for nav bar
         }
+    }
+
+    if (showAboutDialog) {
+        AboutDialog(onDismiss = { showAboutDialog = false })
     }
 }
 
@@ -215,7 +310,11 @@ private fun MoodDistributionSection(mood: Mood?, onMoodSelected: (Mood?) -> Unit
 }
 
 @Composable
-private fun RecentFootprintsSection(entries: List<com.footprint.data.model.FootprintEntry>, onCreateGoal: () -> Unit) {
+private fun RecentFootprintsSection(
+    entries: List<com.footprint.data.model.FootprintEntry>, 
+    onCreateGoal: () -> Unit,
+    onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit
+) {
     val formatter = remember { DateTimeFormatter.ofPattern("MM-dd") }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -227,7 +326,10 @@ private fun RecentFootprintsSection(entries: List<com.footprint.data.model.Footp
             Button(onClick = onCreateGoal) { Text("新的计划") }
         }
         entries.forEach { entry ->
-            GlassMorphicCard(shape = RoundedCornerShape(18.dp)) {
+            GlassMorphicCard(
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.clickable { onEditEntry(entry) }
+            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(text = entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(modifier = Modifier.height(4.dp))

@@ -137,11 +137,19 @@ class FootprintViewModel(
         }
     }
 
+    fun updateGoal(goal: TravelGoal) {
+        viewModelScope.launch {
+            repository.saveGoal(goal)
+        }
+    }
+
     fun toggleGoal(goal: TravelGoal) {
         viewModelScope.launch {
             repository.updateGoalCompletion(goal, !goal.isCompleted)
         }
     }
+
+    fun getTrackPoints(start: Long, end: Long) = repository.getTrackPoints(start, end)
 
     companion object {
         val Factory = object : ViewModelProvider.Factory {

@@ -23,4 +23,10 @@ interface FootprintDao {
 
     @Query("SELECT COUNT(*) FROM footprints")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM footprints")
+    suspend fun getAll(): List<FootprintEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entries: List<FootprintEntity>)
 }

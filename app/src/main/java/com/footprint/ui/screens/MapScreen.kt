@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.GpsFixed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -51,13 +52,24 @@ import com.footprint.utils.AppUtils
 
 @Composable
 fun MapScreen(
-    entries: List<FootprintEntry> = emptyList()
+    entries: List<FootprintEntry> = emptyList(),
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val context = LocalContext.current
     val mapView = remember { MapView(context) }
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     
+    val bottomPadding = contentPadding.calculateBottomPadding()
+    
     var selectedEntry by remember { mutableStateOf<FootprintEntry?>(null) }
+
+    // Persistent Map State
+    var lastLat by rememberSaveable { mutableStateOf(39.9042) } // Beijing default
+    var lastLng by rememberSaveable { mutableStateOf(116.4074) }
+    var lastZoom by rememberSaveable { mutableStateOf(10f) }
+
+    // State to handle auto-centering
+    var isPendingCenter by remember { mutableStateOf(true) }
 
     // 管理 MapView 生命周期
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -65,7 +77,13 @@ fun MapScreen(
         val lifecycleObserver = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                Lifecycle.Event.ON_PAUSE -> {
+                    val camera = mapView.map.cameraPosition
+                    lastLat = camera.target.latitude
+                    lastLng = camera.target.longitude
+                    lastZoom = camera.zoom
+                    mapView.onPause()
+                }
                 Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
                 else -> {}
             }
@@ -78,6 +96,10 @@ fun MapScreen(
         }
 
         onDispose {
+            val camera = mapView.map.cameraPosition
+            lastLat = camera.target.latitude
+            lastLng = camera.target.longitude
+            lastZoom = camera.zoom
             lifecycle.removeObserver(lifecycleObserver)
             mapView.onDestroy()
         }
@@ -112,11 +134,12 @@ fun MapScreen(
     
     var showApiKeyDialog by remember { mutableStateOf(false) }
 
-    // 监听位置，并确保相机移动是基于有效坐标的
+    // Auto-centering logic: handles both switching back and first-time fix
     LaunchedEffect(currentLocation) {
         currentLocation?.let { loc ->
-            if (loc.latitude > 1.0 && !isTracking) { // Only auto-pan if not tracking path, or handle better
-                // mapView.map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 17f))
+            if (loc.latitude > 1.0 && isPendingCenter) {
+                mapView.map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 17f))
+                isPendingCenter = false
             }
         }
     }
@@ -160,7 +183,8 @@ fun MapScreen(
                                 selectedEntry = null
                             }
 
-                            moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(39.9042, 116.4074), 10f))
+                            // Restore last known position immediately
+                            moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lastLat, lastLng), lastZoom))
                         }
                     }
                 },
@@ -191,12 +215,11 @@ fun MapScreen(
             PermissionDenyOverlay { launcher.launch(permissionsToRequest) }
         }
         
-        // Footprint Detail Card
         AnimatedVisibility(
             visible = selectedEntry != null,
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp, start = 24.dp, end = 24.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPadding + 100.dp, start = 24.dp, end = 24.dp)
         ) {
             selectedEntry?.let { entry ->
                 GlassMorphicCard(
@@ -208,11 +231,11 @@ fun MapScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                             Text(entry.location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         }
                         IconButton(onClick = { selectedEntry = null }) {
-                            Icon(Icons.Default.Close, null)
+                            Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
@@ -242,8 +265,10 @@ fun MapScreen(
             ) {
                 IconButton(
                     onClick = {
+                        isPendingCenter = true // Request auto-center on fix
                         if (currentLocation != null && currentLocation!!.latitude > 1.0) {
                             mapView.map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(currentLocation!!.latitude, currentLocation!!.longitude), 18f))
+                            isPendingCenter = false // Already centered
                         } else {
                             android.widget.Toast.makeText(context, "正在请求定位...", android.widget.Toast.LENGTH_SHORT).show()
                             LocationTrackingService.startTracking(context)
@@ -256,12 +281,11 @@ fun MapScreen(
             }
         }
 
-        // 底部控制
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 20.dp) // Adjusted for bottom nav bar padding if any, but since it's a separate screen...
+                .padding(bottom = bottomPadding + 16.dp)
                 .fillMaxWidth()
                 .height(88.dp)
         ) {
@@ -290,7 +314,10 @@ fun MapScreen(
                     Button(
                         onClick = {
                             if (isTracking) LocationTrackingService.stopTracking(context)
-                            else LocationTrackingService.startTracking(context)
+                            else {
+                                isPendingCenter = true // Start tracking and center map on first fix
+                                LocationTrackingService.startTracking(context)
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isTracking) Color(0xFFFF4D4F) else MaterialTheme.colorScheme.primary,

@@ -23,4 +23,10 @@ interface TravelGoalDao {
 
     @Query("SELECT COUNT(*) FROM travel_goals")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM travel_goals")
+    suspend fun getAll(): List<TravelGoalEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(goals: List<TravelGoalEntity>)
 }

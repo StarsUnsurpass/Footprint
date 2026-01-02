@@ -44,6 +44,20 @@ class FootprintRepository(
     fun getTrackPoints(startTime: Long, endTime: Long): Flow<List<com.footprint.data.local.TrackPointEntity>> {
         return trackPointDao.getPointsInRange(startTime, endTime)
     }
+
+    suspend fun prepareBackup(): com.footprint.data.model.BackupData {
+        return com.footprint.data.model.BackupData(
+            footprints = footprintDao.getAll(),
+            goals = travelGoalDao.getAll(),
+            trackPoints = trackPointDao.getAll()
+        )
+    }
+
+    suspend fun restoreFromBackup(data: com.footprint.data.model.BackupData) {
+        if (data.footprints.isNotEmpty()) footprintDao.upsertAll(data.footprints)
+        if (data.goals.isNotEmpty()) travelGoalDao.upsertAll(data.goals)
+        if (data.trackPoints.isNotEmpty()) trackPointDao.insertAll(data.trackPoints)
+    }
     // ----------------
 
     suspend fun saveEntry(entry: FootprintEntry) {

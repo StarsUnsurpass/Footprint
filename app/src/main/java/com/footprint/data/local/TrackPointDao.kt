@@ -18,4 +18,10 @@ interface TrackPointDao {
     
     @Query("DELETE FROM track_points WHERE timestamp < :timestamp")
     suspend fun deleteOlderThan(timestamp: Long)
+
+    @Query("SELECT * FROM track_points")
+    suspend fun getAll(): List<TrackPointEntity>
+
+    @Insert
+    suspend fun insertAll(points: List<TrackPointEntity>)
 }

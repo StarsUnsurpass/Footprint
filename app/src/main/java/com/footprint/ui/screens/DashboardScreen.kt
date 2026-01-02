@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -15,10 +16,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,10 +31,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.focus.onFocusChanged
 import com.footprint.data.model.Mood
 import com.footprint.data.model.FootprintEntry
 import com.footprint.ui.state.FootprintUiState
@@ -40,6 +46,15 @@ import com.footprint.ui.components.AboutDialog
 import java.text.DecimalFormat
 import java.time.format.DateTimeFormatter
 import java.time.LocalDate
+
+enum class StatType(val label: String, val icon: ImageVector) {
+    TOTAL_RECORDS("年度足迹记录", Icons.Default.Description),
+    MILEAGE("里程详情", Icons.Default.Route),
+    UNIQUE_PLACES("探索地点清单", Icons.Default.Place),
+    MONTHLY_RECORDS("本月详细记录", Icons.Default.Description),
+    ENERGY("能量/活力分布", Icons.Default.Bolt),
+    MOOD("心情分布统计", Icons.Default.EmojiEmotions)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +72,7 @@ fun DashboardScreen(
 ) {
     var query by rememberSaveable { mutableStateOf(state.filterState.searchQuery) }
     val df = remember { DecimalFormat("0.0") }
+    val focusManager = LocalFocusManager.current
 
     var showMenu by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -65,6 +81,8 @@ fun DashboardScreen(
     var selectedStatType by remember { mutableStateOf<StatType?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showBottomSheet by remember { mutableStateOf(false) }
+    
+    var isSearchFocused by remember { mutableStateOf(false) }
 
     val openStatDetail = { type: StatType ->
         selectedStatType = type
@@ -73,24 +91,15 @@ fun DashboardScreen(
 
     AppBackground(modifier = modifier) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Layer 1: Content (Scrollable & Blurred on focus)
             LazyColumn(
-                contentPadding = PaddingValues(top = 100.dp, bottom = 100.dp),
+                contentPadding = PaddingValues(top = 190.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(if (isSearchFocused) 20.dp else 0.dp)
             ) {
-                // Search Bar
-                item {
-                    SearchBar(
-                        query = query,
-                        onQueryChange = {
-                            query = it
-                            onSearch(it)
-                        },
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-
-                // Statistics Grid (Refined)
+                // Statistics Grid
                 item {
                     StatisticsSection(
                         state = state,
@@ -126,19 +135,34 @@ fun DashboardScreen(
                 }
 
                 // Sections
-                recentFootprintsSection(entries = state.entries, onCreateGoal = onCreateGoal, onEditEntry = onEditEntry)
+                recentFootprintsSection(entries = state.visibleEntries, onCreateGoal = onCreateGoal, onEditEntry = onEditEntry)
                 
                 goalsListSection(goals = state.goals, onEditGoal = onEditGoal)
             }
 
-            // Telegram style Blurred Top Bar
-            Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+            // Layer 2: Transparent Dismiss Overlay (only when searching)
+            if (isSearchFocused) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.05f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { 
+                            focusManager.clearFocus()
+                        }
+                )
+            }
+
+            // Layer 3: Top Bar & Search Bar (Fixed & Clear)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
-                    .blur(if (showBottomSheet) 10.dp else 0.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
             ) {
+                // Top Bar
                 Row(
                     modifier = Modifier
                         .statusBarsPadding()
@@ -161,32 +185,45 @@ fun DashboardScreen(
                         )
                     }
                     
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = null)
-                    }
-                    
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("设置") },
-                            leadingIcon = { Icon(Icons.Default.Settings, null) },
-                            onClick = {
-                                showMenu = false
-                                onSettings()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("关于") },
-                            leadingIcon = { Icon(Icons.Default.Info, null) },
-                            onClick = {
-                                showMenu = false
-                                showAboutDialog = true
-                            }
-                        )
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                        
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("设置") },
+                                leadingIcon = { Icon(Icons.Default.Settings, null) },
+                                onClick = {
+                                    showMenu = false
+                                    onSettings()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("关于") },
+                                leadingIcon = { Icon(Icons.Default.Info, null) },
+                                onClick = {
+                                    showMenu = false
+                                    showAboutDialog = true
+                                }
+                            )
+                        }
                     }
                 }
+
+                // Search Bar
+                SearchBar(
+                    query = query,
+                    onQueryChange = {
+                        query = it
+                        onSearch(it)
+                    },
+                    onFocusChange = { isSearchFocused = it },
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                )
             }
         }
 
@@ -219,6 +256,7 @@ fun DashboardScreen(
 fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    onFocusChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -227,7 +265,7 @@ fun SearchBar(
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -249,8 +287,19 @@ fun SearchBar(
                     value = query,
                     onValueChange = onQueryChange,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-                    modifier = Modifier.fillMaxWidth()
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { onFocusChange(it.isFocused) }
                 )
+            }
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = { onQueryChange("") },
+                    modifier = Modifier.size(20.dp)
+                ) {
+                    Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(16.dp))
+                }
             }
         }
     }
@@ -295,6 +344,30 @@ fun StatisticsSection(
                 onClick = { onStatClick(StatType.UNIQUE_PLACES) }
             )
         }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            StatItem(
+                label = "记录",
+                value = "${state.summary.monthly.totalEntries}",
+                modifier = Modifier.weight(1f),
+                onClick = { onStatClick(StatType.MONTHLY_RECORDS) }
+            )
+            StatItem(
+                label = "活力",
+                value = state.summary.monthly.energyAverage.takeIf { it > 0 }?.let { df.format(it) } ?: "-",
+                modifier = Modifier.weight(1f),
+                onClick = { onStatClick(StatType.ENERGY) }
+            )
+            StatItem(
+                label = "主情绪",
+                value = state.summary.monthly.dominantMood?.label ?: "待发现",
+                modifier = Modifier.weight(1f),
+                onClick = { onStatClick(StatType.MOOD) }
+            )
+        }
     }
 }
 
@@ -315,7 +388,7 @@ fun StatItem(
             modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
+            Text(text = value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
             if (unit.isNotEmpty()) {
                 Text(text = unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
             }
@@ -351,11 +424,11 @@ fun TelegramActionCard(
                 modifier = Modifier.size(24.dp)
             )
             Column {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.outline)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.outline)
         }
     }
 }
@@ -363,7 +436,7 @@ fun TelegramActionCard(
 @Composable
 private fun MoodRadarSection(currentMood: Mood?, onMoodSelected: (Mood?) -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text("年度心情偏好", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        Text("年度心情偏好", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -428,7 +501,8 @@ private fun StatDetailContent(
             Text(
                 text = type.label,
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -456,7 +530,7 @@ private fun StatDetailContent(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Icon(Icons.Default.Place, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
-                                    Text(location, style = MaterialTheme.typography.bodyMedium)
+                                    Text(location, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                 }
                                 Text("${count} 次", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                             }
@@ -487,7 +561,7 @@ private fun StatDetailContent(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(mood.color))
-                                    Text(mood.label, style = MaterialTheme.typography.bodyMedium)
+                                    Text(mood.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                 }
                                 Text("${count} 次", style = MaterialTheme.typography.labelSmall, color = mood.color)
                             }
@@ -515,13 +589,21 @@ private fun StatDetailContent(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(entry.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                                    Text(entry.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                                     Text(entry.happenedOn.format(formatter), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                                 }
                                 if (type == StatType.MILEAGE) {
                                     Text(
                                         "${df.format(entry.distanceKm)} km",
                                         style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (type == StatType.ENERGY) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    LinearProgressIndicator(
+                                        progress = { entry.energyLevel / 10f },
+                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -544,14 +626,14 @@ private fun YearNavigator(year: Int, onBack: () -> Unit, onForward: () -> Unit) 
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = "年份筛选", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        Text(text = "年份筛选", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Outlined.ArrowBackIosNew, null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Outlined.ArrowBackIosNew, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
-            Text(text = year.toString(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 12.dp))
+            Text(text = year.toString(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.onSurface)
             IconButton(onClick = onForward, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, null, modifier = Modifier.size(14.dp))
+                Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -569,7 +651,8 @@ private fun LazyListScope.goalsListSection(
             text = "旅行目标", 
             style = MaterialTheme.typography.labelMedium, 
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, top = 12.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+            color = MaterialTheme.colorScheme.primary
         )
     }
     items(goals) { goal ->
@@ -601,7 +684,7 @@ private fun LazyListScope.goalsListSection(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(goal.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(goal.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Text("${goal.targetLocation} · ${goal.targetDate.format(formatter)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -620,11 +703,11 @@ private fun LazyListScope.recentFootprintsSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, top = 12.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "最近足迹", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(text = "最近足迹", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text(
                 text = "新建 +", 
                 style = MaterialTheme.typography.labelMedium, 
@@ -677,7 +760,8 @@ private fun TelegramEntryItem(
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = entry.happenedOn.format(dateFormatter),

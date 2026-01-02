@@ -15,12 +15,18 @@ import com.footprint.ui.state.FilterState
 import com.footprint.ui.state.FootprintUiState
 import com.footprint.ui.theme.ThemeMode
 import com.footprint.utils.PreferenceManager
+import com.google.gson.Gson
+import android.net.Uri
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FootprintViewModel(
     application: Application,
@@ -28,6 +34,7 @@ class FootprintViewModel(
 ) : AndroidViewModel(application) {
 
     private val preferenceManager = PreferenceManager(application)
+    private val gson = Gson()
     
     private val moodFilter = MutableStateFlow<Mood?>(null)
     private val searchQuery = MutableStateFlow("")
@@ -80,6 +87,45 @@ class FootprintViewModel(
 
     init {
         repository.ensureSeedData()
+    }
+
+    fun exportData(uri: Uri, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val backup = repository.prepareBackup()
+                val json = gson.toJson(backup)
+                withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        OutputStreamWriter(outputStream).use { writer ->
+                            writer.write(json)
+                        }
+                    }
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "导出失败")
+            }
+        }
+    }
+
+    fun importData(uri: Uri, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { inputStream ->
+                        InputStreamReader(inputStream).use { reader ->
+                            reader.readText()
+                        }
+                    }
+                } ?: throw Exception("无法读取文件")
+                
+                val backup = gson.fromJson(json, com.footprint.data.model.BackupData::class.java)
+                repository.restoreFromBackup(backup)
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "导入失败")
+            }
+        }
     }
 
     fun setThemeMode(mode: ThemeMode) {

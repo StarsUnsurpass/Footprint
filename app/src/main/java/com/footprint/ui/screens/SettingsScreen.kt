@@ -1,18 +1,20 @@
 package com.footprint.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Brightness4
-import androidx.compose.material.icons.filled.BrightnessAuto
-import androidx.compose.material.icons.filled.BrightnessLow
-import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.footprint.ui.theme.ThemeMode
@@ -23,8 +25,23 @@ import com.footprint.ui.components.AppBackground
 fun SettingsScreen(
     currentThemeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onExportData: (Uri) -> Unit,
+    onImportData: (Uri) -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    
+    // File Launchers
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+        onResult = { uri -> uri?.let { onExportData(it) } }
+    )
+    
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { onImportData(it) } }
+    )
+
     AppBackground {
         Scaffold(
             topBar = {
@@ -49,15 +66,10 @@ fun SettingsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 外观
                 item {
-                    Text(
-                        text = "外观定制",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    SettingsSectionTitle("外观定制")
                 }
-
                 item {
                     ThemeModeSelector(
                         selectedMode = currentThemeMode,
@@ -65,29 +77,77 @@ fun SettingsScreen(
                     )
                 }
 
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
+
+                // 数据管理 (Backup & Restore)
                 item {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    SettingsSectionTitle("数据管理")
+                }
+                item {
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    ) {
+                        Column {
+                            SettingsActionItem(
+                                title = "导出足迹备份",
+                                subtitle = "将所有数据保存为 JSON 文件",
+                                icon = Icons.Default.CloudUpload,
+                                onClick = { exportLauncher.launch("footprint_backup_${System.currentTimeMillis()}.json") }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                            SettingsActionItem(
+                                title = "导入历史记录",
+                                subtitle = "从备份文件恢复足迹和目标",
+                                icon = Icons.Default.CloudDownload,
+                                onClick = { importLauncher.launch(arrayOf("application/json", "application/octet-stream")) }
+                            )
+                        }
+                    }
                 }
 
-                item {
-                    Text(
-                        text = "关于应用",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
 
+                // 关于
+                item {
+                    SettingsSectionTitle("关于应用")
+                }
                 item {
                     ListItem(
                         headlineContent = { Text("版本信息") },
-                        supportingContent = { Text("v1.3.0") },
+                        supportingContent = { Text("v1.4.0") },
                         leadingContent = { Icon(Icons.Default.ColorLens, contentDescription = null) }
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+fun SettingsSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
+}
+
+@Composable
+fun SettingsActionItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle) },
+        leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
+        trailingContent = { Icon(Icons.Default.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.outline) },
+        modifier = Modifier.clickable(onClick = onClick)
+    )
 }
 
 @Composable

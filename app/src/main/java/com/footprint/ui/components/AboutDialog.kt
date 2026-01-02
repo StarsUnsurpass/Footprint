@@ -36,7 +36,7 @@ fun AboutDialog(
                 )
                 
                 Text(
-                    text = "版本: 1.3.0",
+                    text = "版本: 1.4.0",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 

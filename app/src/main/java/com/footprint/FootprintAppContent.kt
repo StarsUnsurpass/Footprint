@@ -50,6 +50,8 @@ fun FootprintApp() {
     val isDark = uiState.themeMode == com.footprint.ui.theme.ThemeMode.DARK || 
                 (uiState.themeMode == com.footprint.ui.theme.ThemeMode.SYSTEM && isSystemInDarkTheme())
 
+    val tabOrder = listOf("dashboard", "map", "timeline", "planner")
+
     FootprintTheme(themeMode = uiState.themeMode) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
@@ -70,7 +72,7 @@ fun FootprintApp() {
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = Color.White,
                             shape = CircleShape,
-                            modifier = Modifier.padding(bottom = 80.dp) // Offset for bottom bar
+                            modifier = Modifier.padding(bottom = 80.dp)
                         ) {
                             Icon(Icons.Outlined.Add, contentDescription = null)
                         }
@@ -78,7 +80,6 @@ fun FootprintApp() {
                 },
                 bottomBar = {
                     if (currentDestination != "export_trace" && currentDestination != "settings") {
-                        // 仿 Telegram 高级感悬浮导航
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -144,12 +145,36 @@ fun FootprintApp() {
                     startDestination = "dashboard",
                     modifier = Modifier.fillMaxSize(),
                     enterTransition = { 
-                        fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + 
-                        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                        val fromRoute = initialState.destination.route
+                        val toRoute = targetState.destination.route
+                        val fromIndex = tabOrder.indexOf(fromRoute)
+                        val toIndex = tabOrder.indexOf(toRoute)
+                        
+                        if (fromIndex != -1 && toIndex != -1) {
+                            if (toIndex > fromIndex) {
+                                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn()
+                            } else {
+                                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn()
+                            }
+                        } else {
+                            fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                        }
                     },
                     exitTransition = { 
-                        fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + 
-                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                        val fromRoute = initialState.destination.route
+                        val toRoute = targetState.destination.route
+                        val fromIndex = tabOrder.indexOf(fromRoute)
+                        val toIndex = tabOrder.indexOf(toRoute)
+                        
+                        if (fromIndex != -1 && toIndex != -1) {
+                            if (toIndex > fromIndex) {
+                                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
+                            } else {
+                                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
+                            }
+                        } else {
+                            fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                        }
                     }
                 ) {
                     composable("dashboard") {
@@ -166,9 +191,24 @@ fun FootprintApp() {
                         )
                     }
                     composable("settings") {
+                        val context = android.view.View(LocalContext.current).context
                         SettingsScreen(
                             currentThemeMode = uiState.themeMode,
                             onThemeModeChange = viewModel::setThemeMode,
+                            onExportData = { uri ->
+                                viewModel.exportData(
+                                    uri = uri,
+                                    onSuccess = { android.widget.Toast.makeText(context, "数据导出成功", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError = { error -> android.widget.Toast.makeText(context, "导出错误: $error", android.widget.Toast.LENGTH_LONG).show() }
+                                )
+                            },
+                            onImportData = { uri ->
+                                viewModel.importData(
+                                    uri = uri,
+                                    onSuccess = { android.widget.Toast.makeText(context, "数据恢复完成", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError = { error -> android.widget.Toast.makeText(context, "导入错误: $error", android.widget.Toast.LENGTH_LONG).show() }
+                                )
+                            },
                             onBack = { navController.popBackStack() }
                         )
                     }
@@ -179,7 +219,10 @@ fun FootprintApp() {
                         )
                     }
                     composable("map") { 
-                        MapScreen(entries = uiState.visibleEntries) 
+                        MapScreen(
+                            entries = uiState.visibleEntries,
+                            contentPadding = innerPadding
+                        ) 
                     }
                     composable("timeline") {
                         TimelineScreen(

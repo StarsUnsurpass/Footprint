@@ -79,7 +79,7 @@ fun TimelineScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Surface(
-                                color = Color.Black.copy(alpha = 0.1f),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                                 shape = CircleShape
                             ) {
                                 Text(

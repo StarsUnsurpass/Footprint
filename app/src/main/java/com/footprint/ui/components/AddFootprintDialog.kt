@@ -89,7 +89,8 @@ fun AddFootprintDialog(
                 Text(
                     text = if (initialEntry != null) "编辑足迹" else "添加新的足迹", 
                     style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
                 )
                 
                 OutlinedTextField(
@@ -147,7 +148,10 @@ fun AddFootprintDialog(
                 }
                 
                 Column {
-                    Text(text = "活力指数: ${energy.toInt()}")
+                    Text(
+                        text = "活力指数: ${energy.toInt()}",
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                    )
                     Slider(
                         value = energy,
                         onValueChange = { energy = it },

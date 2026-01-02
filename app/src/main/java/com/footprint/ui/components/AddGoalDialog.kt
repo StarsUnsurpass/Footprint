@@ -73,7 +73,8 @@ fun AddGoalDialog(
                 Text(
                     text = if (initialGoal != null) "编辑旅程目标" else "创建旅程目标",
                     style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
                 )
                 
                 OutlinedTextField(

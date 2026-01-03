@@ -44,4 +44,8 @@ class PreferenceManager(context: Context) {
         set(value) {
             prefs.edit().putString("theme_style", value.name).apply()
         }
+
+    var hasSeededV5: Boolean
+        get() = prefs.getBoolean("has_seeded_v5", false)
+        set(value) = prefs.edit().putBoolean("has_seeded_v5", value).apply()
 }

@@ -1,14 +1,15 @@
 package com.footprint
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewModelScope
+import com.footprint.data.model.FootprintEntry
 import com.footprint.data.model.Mood
 import com.footprint.data.model.TravelGoal
-import com.footprint.data.model.FootprintEntry
 import com.footprint.data.repository.FootprintAnalytics
 import com.footprint.data.repository.FootprintRepository
 import com.footprint.ui.state.FilterState
@@ -16,17 +17,11 @@ import com.footprint.ui.state.FootprintUiState
 import com.footprint.ui.theme.ThemeMode
 import com.footprint.utils.PreferenceManager
 import com.google.gson.Gson
-import android.net.Uri
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -47,71 +42,75 @@ class FootprintViewModel(
     private val avatarId = MutableStateFlow(preferenceManager.avatarId)
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    private val yearlyTrackPointCount = yearFilter.flatMapLatest { year ->
-        flow {
+    private val yearlyTrackPointCount: Flow<Int> = yearFilter.flatMapLatest { year ->
+        flow<Int> {
             emit(repository.getTrackPointCount(year))
         }
     }
 
-    private val monthlyTrackPointCount = flow {
+    private val monthlyTrackPointCount: Flow<Int> = flow<Int> {
         val now = LocalDate.now()
         emit(repository.getTrackPointCount(now.year, now.monthValue))
     }
 
-    val uiState = combine(
+    // 定义显式的数据组结构
+    private data class DataGroup(val entries: List<FootprintEntry>, val goals: List<TravelGoal>, val yPoints: Int, val mPoints: Int)
+    private data class FilterGroup(val mood: Mood?, val search: String, val year: Int)
+    private data class PrefsGroup(val theme: ThemeMode, val style: com.footprint.ui.theme.AppThemeStyle, val nk: String, val av: String)
+
+    // 强类型合并流
+    private val dataFlow: Flow<DataGroup> = combine(
         repository.observeEntries(),
         repository.observeGoals(),
+        yearlyTrackPointCount,
+        monthlyTrackPointCount
+    ) { entries, goals, yPoints, mPoints ->
+        DataGroup(entries, goals, yPoints, mPoints)
+    }
+
+    private val filterFlow: Flow<FilterGroup> = combine(
         moodFilter,
         searchQuery,
-        yearFilter,
+        yearFilter
+    ) { mood, search, year ->
+        FilterGroup(mood, search, year)
+    }
+
+    private val prefsFlow: Flow<PrefsGroup> = combine(
         themeMode,
         themeStyle,
         nickname,
-        avatarId,
-        yearlyTrackPointCount,
-        monthlyTrackPointCount
-    ) { args ->
-        @Suppress("UNCHECKED_CAST")
-        val entries = args[0] as List<FootprintEntry>
-        @Suppress("UNCHECKED_CAST")
-        val goals = args[1] as List<TravelGoal>
-        val mood = args[2] as Mood?
-        val search = args[3] as String
-        val year = args[4] as Int
-        val theme = args[5] as ThemeMode
-        val style = args[6] as com.footprint.ui.theme.AppThemeStyle
-        val nk = args[7] as String
-        val av = args[8] as String
-        val yPoints = args[9] as Int
-        val mPoints = args[10] as Int
+        avatarId
+    ) { theme, style, nk, av ->
+        PrefsGroup(theme, style, nk, av)
+    }
 
-        val visibleEntries = entries
-            .filter { if (search.isBlank()) it.happenedOn.year == year else true }
-            .filter { mood == null || it.mood == mood }
+    // 最终合并，参数减少到 3 个，编译器推断不再压力
+    val uiState: StateFlow<FootprintUiState> = combine(dataFlow, filterFlow, prefsFlow) { data, filter, prefs ->
+        val visibleEntries = data.entries
+            .filter { if (filter.search.isBlank()) it.happenedOn.year == filter.year else true }
+            .filter { filter.mood == null || it.mood == filter.mood }
             .filter {
-                if (search.isBlank()) true
+                if (filter.search.isBlank()) true
                 else {
-                    val queryText = search.trim().lowercase()
+                    val queryText = filter.search.trim().lowercase()
                     it.title.lowercase().contains(queryText) ||
                         it.location.lowercase().contains(queryText) ||
                         it.tags.any { tag -> tag.lowercase().contains(queryText) }
                 }
             }
         
-        val visibleGoals = goals
-            .filter { if (search.isBlank()) it.targetDate.year == year else true }
+        val visibleGoals = data.goals
+            .filter { if (filter.search.isBlank()) it.targetDate.year == filter.year else true }
 
-        // Memory of the day: "On This Day" from previous years
         val today = LocalDate.now()
-        val historicalMemories = entries.filter { 
+        val historicalMemories = data.entries.filter { 
             it.happenedOn.monthValue == today.monthValue && 
             it.happenedOn.dayOfMonth == today.dayOfMonth &&
             it.happenedOn.year < today.year
         }
         
-        val randomMemory = if (historicalMemories.isNotEmpty()) {
-            historicalMemories.random()
-        } else null
+        val randomMemory = if (historicalMemories.isNotEmpty()) historicalMemories.random() else null
 
         val memoryQuote = if (randomMemory == null) {
             val quotes = listOf(
@@ -127,15 +126,17 @@ class FootprintViewModel(
         } else null
 
         FootprintUiState(
-            entries = entries,
+            entries = data.entries,
             visibleEntries = visibleEntries,
             goals = visibleGoals,
-            summary = FootprintAnalytics.buildSummary(entries, year, yPoints, mPoints),
-            filterState = FilterState(mood, search, year),
-            themeMode = theme,
-            themeStyle = style,
-            userNickname = nk,
-            userAvatarId = av,
+            yearlyEntries = data.entries.filter { it.happenedOn.year == filter.year },
+            yearlyGoals = data.goals.filter { it.targetDate.year == filter.year },
+            summary = FootprintAnalytics.buildSummary(data.entries, filter.year, data.yPoints, data.mPoints),
+            filterState = FilterState(filter.mood, filter.search, filter.year),
+            themeMode = prefs.theme,
+            themeStyle = prefs.style,
+            userNickname = prefs.nk,
+            userAvatarId = prefs.av,
             randomMemory = randomMemory,
             memoryQuote = memoryQuote,
             isLoading = false

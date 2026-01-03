@@ -17,6 +17,8 @@ data class FootprintUiState(
     val entries: List<FootprintEntry> = emptyList(),
     val visibleEntries: List<FootprintEntry> = emptyList(),
     val goals: List<TravelGoal> = emptyList(),
+    val yearlyEntries: List<FootprintEntry> = emptyList(),
+    val yearlyGoals: List<TravelGoal> = emptyList(),
     val summary: FootprintSummary = FootprintSummary(),
     val filterState: FilterState = FilterState(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,

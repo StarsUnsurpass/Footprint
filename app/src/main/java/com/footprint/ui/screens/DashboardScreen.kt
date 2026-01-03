@@ -1,13 +1,7 @@
 package com.footprint.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,8 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
-import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -32,7 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +47,7 @@ import com.footprint.ui.state.FootprintUiState
 import com.footprint.ui.components.AppBackground
 import com.footprint.ui.components.GlassMorphicCard
 import com.footprint.ui.components.AboutDialog
+import com.footprint.ui.components.IconUtils
 import java.text.DecimalFormat
 import java.time.format.DateTimeFormatter
 import java.time.LocalDate
@@ -110,7 +107,7 @@ fun DashboardScreen(
                     .fillMaxSize()
                     .blur(if (isSearchFocused) 20.dp else 0.dp)
             ) {
-                // Year Navigator (Moved up)
+                // Year Navigator
                 item {
                     YearNavigator(
                         year = state.filterState.year,
@@ -152,7 +149,7 @@ fun DashboardScreen(
                     )
                 }
 
-                // Sections (Use visibleEntries for keyword filtering)
+                // Sections (Footprints)
                 recentFootprintsSection(
                     entries = state.visibleEntries, 
                     onCreateGoal = onCreateGoal, 
@@ -168,6 +165,7 @@ fun DashboardScreen(
                     )
                 }
 
+                // Sections (Goals)
                 goalsListSection(
                     goals = state.goals, 
                     onEditGoal = onEditGoal,
@@ -258,7 +256,7 @@ fun DashboardScreen(
                         ) {
                             if (File(avatarId).exists()) {
                                 AsyncImage(
-                                    model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                    model = ImageRequest.Builder(LocalContext.current)
                                         .data(File(avatarId))
                                         .crossfade(true)
                                         .build(),
@@ -538,7 +536,12 @@ fun MemoryLaneSection(
                             .background(memory.mood.color.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(memory.mood.label.take(1), fontSize = 24.sp)
+                        Icon(
+                            IconUtils.getIconByName(memory.icon),
+                            contentDescription = null,
+                            tint = memory.mood.color,
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -590,13 +593,36 @@ fun StatItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-        shape = RoundedCornerShape(16.dp),
-        modifier = modifier.clickable { onClick() }
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "Scale"
+    )
+
+    GlassMorphicCard(
+        shape = RoundedCornerShape(20.dp),
+        modifier = modifier
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        when (event.type) {
+                            PointerEventType.Press -> isPressed = true
+                            PointerEventType.Release, PointerEventType.Exit -> isPressed = false
+                        }
+                    }
+                }
+            }
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(text = value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
@@ -615,30 +641,36 @@ fun TelegramActionCard(
     icon: ImageVector,
     onClick: () -> Unit
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(16.dp),
+    GlassMorphicCard(
+        shape = RoundedCornerShape(24.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                icon, 
-                contentDescription = null, 
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Column {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon, 
+                    contentDescription = null, 
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Spacer(modifier = Modifier.weight(1f))
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.outline)
         }
     }
@@ -839,7 +871,7 @@ private fun YearNavigator(year: Int, onBack: () -> Unit, onForward: () -> Unit) 
             }
             Text(text = year.toString(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.onSurface)
             IconButton(onClick = onForward, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.Default.KeyboardArrowRight, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -923,10 +955,8 @@ private fun LazyListScope.goalsListSection(
                                 onEdit = { onEditGoal(goal) },
                                 onDelete = { onDeleteGoal(goal) }
                             ) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                                GlassMorphicCard(
                                     shape = RoundedCornerShape(16.dp),
-                                    border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp)
@@ -940,49 +970,17 @@ private fun LazyListScope.goalsListSection(
                                             modifier = Modifier
                                                 .size(40.dp)
                                                 .clip(CircleShape)
-                                                .background(if (goal.isCompleted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.secondaryContainer),
+                                                .background(if (goal.isCompleted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                if (goal.isCompleted) Icons.Default.Check else com.footprint.ui.components.IconUtils.getIconByName(goal.icon),
+                                                if (goal.isCompleted) Icons.Default.Check else IconUtils.getIconByName(goal.icon),
                                                 null,
                                                 tint = if (goal.isCompleted) Color.White else MaterialTheme.colorScheme.secondary,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(12.dp))
-// ...
-@Composable
-private fun TelegramEntryItem(
-    entry: FootprintEntry, 
-    dateFormatter: DateTimeFormatter, 
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(entry.mood.color.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                com.footprint.ui.components.IconUtils.getIconByName(entry.icon),
-                contentDescription = null,
-                tint = entry.mood.color,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-
                                         Column {
                                             Text(goal.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                                             Text("${goal.targetLocation} · ${goal.targetDate.format(formatter)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1067,55 +1065,60 @@ private fun TelegramEntryItem(
     dateFormatter: DateTimeFormatter, 
     onClick: () -> Unit
 ) {
-    Row(
+    GlassMorphicCard(
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(entry.mood.color.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = entry.title.take(1),
-                style = MaterialTheme.typography.titleMedium,
-                color = entry.mood.color,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(entry.mood.color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = entry.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = entry.happenedOn.format(dateFormatter),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
+                Icon(
+                    IconUtils.getIconByName(entry.icon),
+                    contentDescription = null,
+                    tint = entry.mood.color,
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            Text(
-                text = entry.location,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = entry.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = entry.happenedOn.format(dateFormatter),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+                Text(
+                    text = entry.location,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

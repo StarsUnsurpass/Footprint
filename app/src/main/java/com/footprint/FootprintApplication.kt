@@ -29,10 +29,12 @@ class FootprintApplication : Application() {
         AMapLocationClient.updatePrivacyAgree(this, true)
 
         val database = FootprintDatabase.getInstance(this)
+        val preferenceManager = com.footprint.utils.PreferenceManager(this)
         repository = FootprintRepository(
             database.footprintDao(), 
             database.travelGoalDao(),
-            database.trackPointDao()
+            database.trackPointDao(),
+            preferenceManager
         )
     }
 }

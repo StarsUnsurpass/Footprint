@@ -1,9 +1,7 @@
 package com.footprint
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -22,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,7 +70,7 @@ fun FootprintApp() {
                     } else Modifier
                 ),
                 floatingActionButton = {
-                    if (currentDestination != "map" && currentDestination != "export_trace" && currentDestination != "settings") {
+                    if (currentDestination == "dashboard" || currentDestination == "timeline" || currentDestination == "planner") {
                         FloatingActionButton(
                             onClick = { showEntryDialog = true },
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -84,7 +83,8 @@ fun FootprintApp() {
                     }
                 },
                 bottomBar = {
-                    if (currentDestination != "export_trace" && currentDestination != "settings") {
+                    val hideBottomBar = currentDestination == "settings" || currentDestination?.startsWith("export_trace") == true
+                    if (!hideBottomBar) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -110,6 +110,12 @@ fun FootprintApp() {
                             ) {
                                 FootprintTab.entries.forEach { tab ->
                                     val selected = currentDestination == tab.route
+                                    val iconScale by animateFloatAsState(
+                                        targetValue = if (selected) 1.2f else 1f,
+                                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                                        label = "IconScale"
+                                    )
+                                    
                                     IconButton(
                                         onClick = {
                                             navController.navigate(tab.route) {
@@ -124,16 +130,18 @@ fun FootprintApp() {
                                             Icon(
                                                 tab.icon,
                                                 contentDescription = tab.label,
-                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                modifier = Modifier.size(24.dp)
+                                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .graphicsLayer(scaleX = iconScale, scaleY = iconScale)
                                             )
                                             if (selected) {
                                                 Box(
                                                     modifier = Modifier
+                                                        .padding(top = 4.dp)
                                                         .size(4.dp)
                                                         .clip(CircleShape)
                                                         .background(MaterialTheme.colorScheme.primary)
-                                                        .padding(top = 2.dp)
                                                 )
                                             }
                                         }
@@ -194,7 +202,47 @@ fun FootprintApp() {
                                 else navController.navigate("export_trace")
                             },
                             onSettings = { navController.navigate("settings") },
-// ...
+                            onEditEntry = { editingEntry = it },
+                            onDeleteEntry = viewModel::deleteFootprint,
+                            onEditGoal = { editingGoal = it },
+                            onDeleteGoal = viewModel::deleteGoal,
+                            onMemoryLaneClick = { 
+                                navController.navigate("timeline") {
+                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        )
+                    }
+                    composable("settings") {
+                        val context = LocalContext.current
+                        SettingsScreen(
+                            currentThemeMode = uiState.themeMode,
+                            currentThemeStyle = uiState.themeStyle,
+                            currentNickname = uiState.userNickname,
+                            currentAvatarId = uiState.userAvatarId,
+                            onThemeModeChange = viewModel::setThemeMode,
+                            onThemeStyleChange = viewModel::setThemeStyle,
+                            onUpdateProfile = viewModel::updateProfile,
+                            onUpdateAvatar = viewModel::updateAvatar,
+                            onExportData = { uri ->
+                                viewModel.exportData(
+                                    uri = uri,
+                                    onSuccess = { android.widget.Toast.makeText(context, "数据导出成功", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError = { error -> android.widget.Toast.makeText(context, "导出错误: $error", android.widget.Toast.LENGTH_LONG).show() }
+                                )
+                            },
+                            onImportData = { uri ->
+                                viewModel.importData(
+                                    uri = uri,
+                                    onSuccess = { android.widget.Toast.makeText(context, "数据恢复完成", android.widget.Toast.LENGTH_SHORT).show() },
+                                    onError = { error -> android.widget.Toast.makeText(context, "导入错误: $error", android.widget.Toast.LENGTH_LONG).show() }
+                                )
+                            },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                     composable("export_trace") {
                         ExportTraceScreen(
                             viewModel = viewModel,
@@ -217,7 +265,7 @@ fun FootprintApp() {
                     }
                     composable("timeline") {
                         TimelineScreen(
-                            entries = uiState.visibleEntries,
+                            entries = if (uiState.filterState.searchQuery.isBlank()) uiState.entries else uiState.visibleEntries,
                             filterState = uiState.filterState,
                             onMoodFilterChange = viewModel::toggleMoodFilter,
                             onSearch = viewModel::updateSearch,

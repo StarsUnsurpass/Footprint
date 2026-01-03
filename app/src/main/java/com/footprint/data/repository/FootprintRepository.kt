@@ -13,11 +13,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 class FootprintRepository(
     private val footprintDao: FootprintDao,
     private val travelGoalDao: TravelGoalDao,
-    private val trackPointDao: com.footprint.data.local.TrackPointDao
+    private val trackPointDao: com.footprint.data.local.TrackPointDao,
+    private val preferenceManager: com.footprint.utils.PreferenceManager
 ) {
 
     private val ioScope = CoroutineScope(Dispatchers.IO)
@@ -47,16 +49,16 @@ class FootprintRepository(
 
     suspend fun getTrackPointCount(year: Int, month: Int? = null): Int {
         val start = if (month == null) {
-            LocalDate.of(year, 1, 1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+            LocalDate.of(year, 1, 1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         } else {
-            LocalDate.of(year, month, 1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+            LocalDate.of(year, month, 1).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
         }
         
         val end = if (month == null) {
-            LocalDate.of(year, 12, 31).atTime(23, 59, 59).toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+            LocalDate.of(year, 12, 31).atTime(23, 59, 59).toInstant(ZoneOffset.UTC).toEpochMilli()
         } else {
             val lastDay = LocalDate.of(year, month, 1).lengthOfMonth()
-            LocalDate.of(year, month, lastDay).atTime(23, 59, 59).toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+            LocalDate.of(year, month, lastDay).atTime(23, 59, 59).toInstant(ZoneOffset.UTC).toEpochMilli()
         }
         
         return trackPointDao.getCountInRange(start, end)
@@ -95,11 +97,14 @@ class FootprintRepository(
 
     fun ensureSeedData() {
         ioScope.launch {
-            if (footprintDao.count() == 0) {
-                SeedData.entries.forEach { footprintDao.upsert(it) }
-            }
-            if (travelGoalDao.count() == 0) {
-                SeedData.goals.forEach { travelGoalDao.upsert(it) }
+            if (!preferenceManager.hasSeededV5) {
+                if (footprintDao.count() == 0) {
+                    SeedData.entries.forEach { footprintDao.upsert(it) }
+                }
+                if (travelGoalDao.count() == 0) {
+                    SeedData.goals.forEach { travelGoalDao.upsert(it) }
+                }
+                preferenceManager.hasSeededV5 = true
             }
         }
     }

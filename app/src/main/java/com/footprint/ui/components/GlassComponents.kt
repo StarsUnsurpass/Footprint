@@ -20,42 +20,65 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GlassMorphicCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(20.dp),
-    blurRadius: Dp = 16.dp, 
+    shape: Shape = RoundedCornerShape(24.dp), // Slightly more rounded for "liquid" look
     content: @Composable () -> Unit
 ) {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     
     val surfaceColor = if (isDark) {
-        Color(0xFF1C1C1E).copy(alpha = 0.75f) // Telegram Dark surface
+        Color(0xFF1C1C1E).copy(alpha = 0.65f)
     } else {
-        Color.White.copy(alpha = 0.85f)
+        Color.White.copy(alpha = 0.75f)
     }
 
-    val borderColor = if (isDark) {
-        Color.White.copy(alpha = 0.1f)
+    // Refraction border gradient
+    val borderBrush = if (isDark) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.15f),
+                Color.White.copy(alpha = 0.05f),
+                Color.White.copy(alpha = 0.15f)
+            )
+        )
     } else {
-        Color.Black.copy(alpha = 0.05f)
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.6f),
+                Color.White.copy(alpha = 0.2f),
+                Color.White.copy(alpha = 0.6f)
+            )
+        )
     }
 
     Box(
         modifier = modifier
             .shadow(
-                elevation = if (isDark) 0.dp else 4.dp,
+                elevation = if (isDark) 12.dp else 8.dp,
                 shape = shape,
-                clip = false
+                spotColor = if (isDark) Color.Black else Color.Gray.copy(alpha = 0.3f),
+                ambientColor = if (isDark) Color.Black else Color.Gray.copy(alpha = 0.2f)
             )
             .background(
                 color = surfaceColor,
                 shape = shape
             )
             .border(
-                width = 0.5.dp,
-                color = borderColor,
+                width = 1.dp, // Thicker border for refraction effect
+                brush = borderBrush,
                 shape = shape
             )
             .clip(shape)
     ) {
+        // Inner highlight for extra "liquid" depth
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(
+                    width = 0.5.dp,
+                    color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.02f),
+                    shape = shape
+                )
+        )
         content()
     }
 }

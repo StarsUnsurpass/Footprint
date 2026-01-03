@@ -25,7 +25,10 @@ import com.footprint.ui.components.AppBackground
 @Composable
 fun SettingsScreen(
     currentThemeMode: ThemeMode,
+    currentNickname: String,
+    currentAvatarId: String,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onUpdateProfile: (String, String) -> Unit,
     onExportData: (Uri) -> Unit,
     onImportData: (Uri) -> Unit,
     onBack: () -> Unit
@@ -67,6 +70,20 @@ fun SettingsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // 个人资料
+                item {
+                    SettingsSectionTitle("数字身份")
+                }
+                item {
+                    ProfileEditor(
+                        nickname = currentNickname,
+                        avatarId = currentAvatarId,
+                        onUpdate = onUpdateProfile
+                    )
+                }
+
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
+
                 // 外观
                 item {
                     SettingsSectionTitle("外观定制")
@@ -204,10 +221,57 @@ fun ThemeOption(
         Spacer(modifier = Modifier.width(8.dp))
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        
+        @Composable
+        fun ProfileEditor(nickname: String, avatarId: String, onUpdate: (String, String) -> Unit) {
+            var name by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(nickname) }
+            
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { 
+                            name = it
+                            onUpdate(it, avatarId)
+                        },
+                        label = { Text("代号 (Nickname)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("头像接入点", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        val avatars = listOf("avatar_1" to Icons.Default.Face, "avatar_2" to Icons.Default.AccountCircle, "avatar_3" to Icons.Default.SmartToy, "avatar_4" to Icons.Default.Fingerprint)
+                        avatars.forEach { (id, icon) ->
+                            val selected = id == avatarId
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .androidx.compose.ui.draw.clip(androidx.compose.foundation.shape.CircleShape)
+                                    .androidx.compose.foundation.background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { onUpdate(name, id) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    icon, 
+                                    contentDescription = null, 
+                                    tint = if (selected) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        

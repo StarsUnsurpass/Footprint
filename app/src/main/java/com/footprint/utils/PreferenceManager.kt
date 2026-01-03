@@ -23,4 +23,12 @@ class PreferenceManager(context: Context) {
     var isFirstLaunch: Boolean
         get() = prefs.getBoolean("is_first_launch", true)
         set(value) = prefs.edit().putBoolean("is_first_launch", value).apply()
+
+    var nickname: String
+        get() = prefs.getString("user_nickname", "旅行者") ?: "旅行者"
+        set(value) = prefs.edit().putString("user_nickname", value).apply()
+
+    var avatarId: String
+        get() = prefs.getString("user_avatar_id", "avatar_1") ?: "avatar_1"
+        set(value) = prefs.edit().putString("user_avatar_id", value).apply()
 }

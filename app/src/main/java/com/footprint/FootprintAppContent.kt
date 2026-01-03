@@ -195,7 +195,10 @@ fun FootprintApp() {
                         val context = LocalContext.current
                         SettingsScreen(
                             currentThemeMode = uiState.themeMode,
+                            currentNickname = uiState.userNickname,
+                            currentAvatarId = uiState.userAvatarId,
                             onThemeModeChange = viewModel::setThemeMode,
+                            onUpdateProfile = viewModel::updateProfile,
                             onExportData = { uri ->
                                 viewModel.exportData(
                                     uri = uri,

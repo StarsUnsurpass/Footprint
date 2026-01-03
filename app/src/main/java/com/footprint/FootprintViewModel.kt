@@ -40,6 +40,8 @@ class FootprintViewModel(
     private val searchQuery = MutableStateFlow("")
     private val yearFilter = MutableStateFlow(LocalDate.now().year)
     private val themeMode = MutableStateFlow(preferenceManager.themeMode)
+    private val nickname = MutableStateFlow(preferenceManager.nickname)
+    private val avatarId = MutableStateFlow(preferenceManager.avatarId)
 
     val uiState = combine(
         repository.observeEntries(),
@@ -47,7 +49,9 @@ class FootprintViewModel(
         moodFilter,
         searchQuery,
         yearFilter,
-        themeMode
+        themeMode,
+        nickname,
+        avatarId
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val entries = args[0] as List<FootprintEntry>
@@ -57,6 +61,8 @@ class FootprintViewModel(
         val search = args[3] as String
         val year = args[4] as Int
         val theme = args[5] as ThemeMode
+        val nk = args[6] as String
+        val av = args[7] as String
 
         val visibleEntries = entries
             .filter { if (search.isBlank()) it.happenedOn.year == year else true }
@@ -77,6 +83,8 @@ class FootprintViewModel(
             summary = FootprintAnalytics.buildSummary(entries),
             filterState = FilterState(mood, search, year),
             themeMode = theme,
+            userNickname = nk,
+            userAvatarId = av,
             isLoading = false
         )
     }.stateIn(
@@ -87,6 +95,13 @@ class FootprintViewModel(
 
     init {
         repository.ensureSeedData()
+    }
+
+    fun updateProfile(newNickname: String, newAvatarId: String) {
+        nickname.value = newNickname
+        avatarId.value = newAvatarId
+        preferenceManager.nickname = newNickname
+        preferenceManager.avatarId = newAvatarId
     }
 
     fun exportData(uri: Uri, onSuccess: () -> Unit, onError: (String) -> Unit) {

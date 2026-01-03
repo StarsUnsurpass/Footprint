@@ -77,6 +77,19 @@
 - `res/values/themes.xml` - Android Material Light 主题
 - `res/values-night/themes.xml` - Android Material Dark 主题
 
+### 8. ✅ 个性化功能 (Personalized Features) - 2026-01-03
+**新增文件：**
+- `utils/AIStoryGenerator.kt`
+  - 赛博朋克风格的旅行故事生成引擎
+  - 基于位置、心情、时间和天气生成独特的记录描述
+
+**功能更新：**
+- **AI 故事写作助手**: 在“记录足迹”对话框中新增 AI 生成按钮，一键生成充满氛围感的旅行日记。
+- **数字身份 (Digital Identity)**:
+  - 在设置页面新增“数字身份”编辑器，支持修改代号 (Nickname) 和选择头像接入点 (Avatar)。
+  - 概览页 (Dashboard) 顶部栏现在会显示用户的个性化代号。
+  - 数据通过 `PreferenceManager` 持久化存储。
+
 ## 项目结构
 
 ```
@@ -88,97 +101,31 @@ Footprint/
 │   │   │   │   ├── local/          # Room数据库
 │   │   │   │   ├── model/          # 数据模型
 │   │   │   │   └── repository/     # 仓储实现
-│   │   │   ├── service/            # 服务层 (NEW)
+│   │   │   ├── service/            # 服务层
 │   │   │   │   ├── LocationTrackingService.kt
 │   │   │   │   └── LocationManager.kt
 │   │   │   ├── ui/                 # UI层
 │   │   │   │   ├── components/     # UI组件
+│   │   │   │   │   └── AddFootprintDialog.kt (UPDATED)
 │   │   │   │   ├── screens/        # 屏幕
-│   │   │   │   │   ├── DashboardScreen.kt
-│   │   │   │   │   ├── MapScreen.kt (NEW)
-│   │   │   │   │   ├── TimelineScreen.kt
-│   │   │   │   │   └── GoalPlannerScreen.kt
+│   │   │   │   │   ├── DashboardScreen.kt (UPDATED)
+│   │   │   │   │   ├── MapScreen.kt
+│   │   │   │   │   ├── SettingsScreen.kt (UPDATED)
+│   │   │   │   │   └── ...
 │   │   │   │   ├── state/          # 状态管理
+│   │   │   │   │   └── FootprintUiState.kt (UPDATED)
 │   │   │   │   └── theme/          # 主题配置
-│   │   │   ├── utils/              # 工具类 (NEW)
-│   │   │   │   ├── InputValidator.kt
-│   │   │   │   └── Logger.kt
+│   │   │   ├── utils/              # 工具类
+│   │   │   │   ├── AIStoryGenerator.kt (NEW)
+│   │   │   │   ├── PreferenceManager.kt (UPDATED)
+│   │   │   │   └── ...
 │   │   │   ├── FootprintApplication.kt
-│   │   │   ├── FootprintViewModel.kt
-│   │   │   ├── FootprintAppContent.kt
-│   │   │   └── MainActivity.kt
-│   │   ├── res/
-│   │   │   ├── values/
-│   │   │   │   ├── strings.xml (UPDATED)
-│   │   │   │   ├── themes.xml (FIXED)
-│   │   │   │   └── colors.xml
-│   │   │   └── values-night/
-│   │   │       └── themes.xml (FIXED)
-│   │   └── AndroidManifest.xml (UPDATED)
-│   └── build.gradle.kts (UPDATED)
-├── build.gradle.kts
-├── settings.gradle.kts
-├── local.properties (FIXED)
-├── .gitignore (UPDATED)
-└── README.md
-
+│   │   │   ├── FootprintViewModel.kt (UPDATED)
+│   │   │   └── ...
+│   │   └── ...
+│   └── ...
+└── ...
 ```
-
-## 新增功能
-
-### 1. 自动轨迹记录 (增强)
-- ✅ **数据库持久化**: 所有的轨迹点现在实时写入 SQLite 数据库，不再因为 App 关闭而丢失。
-- ✅ **开机自启**: 新增 `BootReceiver`，手机重启后自动拉起定位服务。
-- ✅ **全天候记录**: 服务支持长期后台运行，并在 App 重新打开时加载当天历史轨迹。
-
-### 2. 实时位置追踪
-- ✅ 前台服务持续追踪
-- ✅ 每2秒更新位置 (高精度模式)
-- ✅ 通知显示追踪状态
-- ✅ 轨迹点记录
-
-### 2. 地图可视化
-- ✅ 高德地图 (AMap) 集成
-- ✅ 当前位置标记
-- ✅ 轨迹路径绘制（绿色线条）
-- ✅ 起点标记
-- ✅ 相机自动跟随
-- ✅ 统计信息卡片（位置点数、总距离）
-
-### 3. 权限管理
-- ✅ 位置权限请求
-- ✅ 权限状态检查
-- ✅ 友好的权限请求UI
-
-### 4. 导航增强
-- ✅ 4个底部导航标签
-  - 概览 (Dashboard)
-  - 地图 (Map)
-  - 足迹簿 (Timeline)
-  - 目标 (Planner)
-
-## 技术亮点
-
-### 架构模式
-- MVVM架构
-- Clean Architecture分层
-- Repository模式
-- StateFlow响应式编程
-
-### 主要依赖
-- **Jetpack Compose** - 声明式UI
-- **Material 3** - Material Design
-- **Room** - 本地数据库
-- **AMap SDK** - 高德地图与定位
-- **Accompanist** - Compose扩展（权限）
-- **Coroutines & Flow** - 异步处理
-
-### 代码质量
-- ✅ 输入验证
-- ✅ 错误处理
-- ✅ 日志记录
-- ✅ 字符串资源化
-- ✅ 代码注释
 
 ## 编译说明
 
@@ -250,79 +197,3 @@ Footprint/
 ./gradlew installDebug
 adb shell am start -n com.footprint.debug/com.footprint.MainActivity
 ```
-
-## 使用指南
-
-1. **首次启动**
-   - 授予位置权限（必需）
-
-2. **查看地图**
-   - 点击底部"地图"标签
-   - 点击底部悬浮按钮开始追踪
-   - 查看实时位置和轨迹
-
-3. **手动记录**
-   - 在其他标签页
-   - 点击"记录足迹"按钮
-   - 填写信息并保存
-
-4. **查看数据**
-   - 概览页：统计数据
-   - 足迹簿：历史记录
-   - 目标页：旅行目标
-
-## 后续优化建议
-
-### 性能优化
-- [ ] 添加位置更新间隔配置
-- [ ] 实现电池优化策略
-- [ ] 添加缓存机制
-
-### 功能增强
-- [ ] 导出轨迹为 GPX 文件
-- [ ] 添加运动类型识别
-- [ ] 实现地域勋章系统
-- [ ] 数据可视化报告
-
-### 代码质量
-- [ ] 添加单元测试
-- [ ] 添加UI测试
-- [ ] 集成CI/CD
-- [ ] 代码覆盖率检测
-
-## 文件清单
-
-### 新增文件 (7个)
-1. `app/src/main/java/com/footprint/service/LocationTrackingService.kt`
-2. `app/src/main/java/com/footprint/service/LocationManager.kt`
-3. `app/src/main/java/com/footprint/ui/screens/MapScreen.kt`
-4. `app/src/main/java/com/footprint/utils/InputValidator.kt`
-5. `app/src/main/java/com/footprint/utils/Logger.kt`
-
-### 修改文件 (7个)
-1. `app/build.gradle.kts` - 添加依赖
-2. `app/src/main/AndroidManifest.xml` - 添加权限和服务
-3. `app/src/main/java/com/footprint/FootprintAppContent.kt` - 添加地图导航
-4. `app/src/main/res/values/strings.xml` - 添加字符串资源
-5. `app/src/main/res/values/themes.xml` - 修复主题
-6. `app/src/main/res/values-night/themes.xml` - 修复主题
-7. `local.properties` - 修复SDK路径
-
-### 删除目录 (3个)
-1. `gradle-8.6/` - ~1 GB
-2. `android-sdk/` - ~409 MB
-3. `tmp/` - 临时文件
-
-## 项目统计
-
-- **代码文件**: 30+ Kotlin文件
-- **代码行数**: ~2500+ 行
-- **新增功能**: 3个主要功能
-- **优化项**: 6个方面
-- **节省空间**: ~1.5 GB
-
----
-
-**最后更新**: 2025-12-29
-**版本**: v0.1.0-alpha
-**状态**: 可编译运行（需配置Maps API Key）

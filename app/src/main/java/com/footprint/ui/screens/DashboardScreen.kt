@@ -206,7 +206,7 @@ fun DashboardScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Footprint",
+                            text = "Hi, ${state.userNickname}",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.primary

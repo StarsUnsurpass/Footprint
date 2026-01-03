@@ -20,5 +20,7 @@ data class FootprintUiState(
     val summary: FootprintSummary = FootprintSummary(),
     val filterState: FilterState = FilterState(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val userNickname: String = "旅行者",
+    val userAvatarId: String = "avatar_1",
     val isLoading: Boolean = true
 )

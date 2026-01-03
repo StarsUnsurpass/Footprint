@@ -73,7 +73,7 @@ fun DashboardScreen(
     onYearShift: (Int) -> Unit,
     onMoodSelected: (Mood?) -> Unit,
     onCreateGoal: () -> Unit,
-    onExportTrace: () -> Unit,
+    onExportTrace: (Int?) -> Unit,
     onSettings: () -> Unit,
     onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit,
     onDeleteEntry: (com.footprint.data.model.FootprintEntry) -> Unit,
@@ -125,7 +125,7 @@ fun DashboardScreen(
                         state = state,
                         onStatClick = { type ->
                             when (type) {
-                                StatType.TRACK_POINTS -> onExportTrace()
+                                StatType.TRACK_POINTS -> onExportTrace(state.filterState.year)
                                 else -> openStatDetail(type)
                             }
                         },
@@ -148,7 +148,7 @@ fun DashboardScreen(
                         title = "时光足迹回放",
                         subtitle = "查看历史移动轨迹与时空分布",
                         icon = Icons.Default.History,
-                        onClick = onExportTrace
+                        onClick = { onExportTrace(state.filterState.year) }
                     )
                 }
 

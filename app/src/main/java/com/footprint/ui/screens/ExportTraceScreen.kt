@@ -39,20 +39,35 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ExportTraceScreen(
     viewModel: FootprintViewModel,
+    initialYear: Int? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val mapView = remember { MapView(context) }
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     
-    // Default to today 00:00 to now
-    var startDate by remember { mutableStateOf(LocalDate.now()) }
+    // Default to selected year or today
+    var startDate by remember { 
+        mutableStateOf(
+            if (initialYear != null) LocalDate.of(initialYear, 1, 1) 
+            else LocalDate.now()
+        ) 
+    }
     var startHour by remember { mutableStateOf(0) }
     var startMinute by remember { mutableStateOf(0) }
     
-    var endDate by remember { mutableStateOf(LocalDate.now()) }
-    var endHour by remember { mutableStateOf(LocalTime.now().hour) }
-    var endMinute by remember { mutableStateOf(LocalTime.now().minute) }
+    var endDate by remember { 
+        mutableStateOf(
+            if (initialYear != null) LocalDate.of(initialYear, 12, 31)
+            else LocalDate.now()
+        ) 
+    }
+    var endHour by remember { 
+        mutableStateOf(if (initialYear != null) 23 else LocalTime.now().hour) 
+    }
+    var endMinute by remember { 
+        mutableStateOf(if (initialYear != null) 59 else LocalTime.now().minute) 
+    }
     
     // Points state
     var points by remember { mutableStateOf<List<com.footprint.data.local.TrackPointEntity>>(emptyList()) }

@@ -189,52 +189,23 @@ fun FootprintApp() {
                             onYearShift = viewModel::shiftYear,
                             onMoodSelected = viewModel::toggleMoodFilter,
                             onCreateGoal = { showGoalDialog = true },
-                            onExportTrace = { navController.navigate("export_trace") },
+                            onExportTrace = { year -> 
+                                if (year != null) navController.navigate("export_trace/$year")
+                                else navController.navigate("export_trace")
+                            },
                             onSettings = { navController.navigate("settings") },
-                            onEditEntry = { editingEntry = it },
-                            onDeleteEntry = viewModel::deleteFootprint,
-                            onEditGoal = { editingGoal = it },
-                            onDeleteGoal = viewModel::deleteGoal,
-                            onMemoryLaneClick = { 
-                                navController.navigate("timeline") {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        )
-                    }
-                    composable("settings") {
-                        val context = LocalContext.current
-                        SettingsScreen(
-                            currentThemeMode = uiState.themeMode,
-                            currentThemeStyle = uiState.themeStyle,
-                            currentNickname = uiState.userNickname,
-                            currentAvatarId = uiState.userAvatarId,
-                            onThemeModeChange = viewModel::setThemeMode,
-                            onThemeStyleChange = viewModel::setThemeStyle,
-                            onUpdateProfile = viewModel::updateProfile,
-                            onUpdateAvatar = viewModel::updateAvatar,
-                            onExportData = { uri ->
-                                viewModel.exportData(
-                                    uri = uri,
-                                    onSuccess = { android.widget.Toast.makeText(context, "数据导出成功", android.widget.Toast.LENGTH_SHORT).show() },
-                                    onError = { error -> android.widget.Toast.makeText(context, "导出错误: $error", android.widget.Toast.LENGTH_LONG).show() }
-                                )
-                            },
-                            onImportData = { uri ->
-                                viewModel.importData(
-                                    uri = uri,
-                                    onSuccess = { android.widget.Toast.makeText(context, "数据恢复完成", android.widget.Toast.LENGTH_SHORT).show() },
-                                    onError = { error -> android.widget.Toast.makeText(context, "导入错误: $error", android.widget.Toast.LENGTH_LONG).show() }
-                                )
-                            },
-                            onBack = { navController.popBackStack() }
-                        )
-                    }
+// ...
                     composable("export_trace") {
                         ExportTraceScreen(
                             viewModel = viewModel,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("export_trace/{year}") { backStackEntry ->
+                        val year = backStackEntry.arguments?.getString("year")?.toIntOrNull()
+                        ExportTraceScreen(
+                            viewModel = viewModel,
+                            initialYear = year,
                             onBack = { navController.popBackStack() }
                         )
                     }

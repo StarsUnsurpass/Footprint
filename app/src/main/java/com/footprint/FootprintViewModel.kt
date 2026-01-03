@@ -104,6 +104,19 @@ class FootprintViewModel(
         preferenceManager.avatarId = newAvatarId
     }
 
+    fun updateAvatar(uri: Uri) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val path = com.footprint.utils.ImageUtils.saveImageToInternalStorage(getApplication(), uri)
+                if (path != null) {
+                    withContext(Dispatchers.Main) {
+                        updateProfile(nickname.value, path)
+                    }
+                }
+            }
+        }
+    }
+
     fun exportData(uri: Uri, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {

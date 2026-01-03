@@ -199,6 +199,7 @@ fun FootprintApp() {
                             currentAvatarId = uiState.userAvatarId,
                             onThemeModeChange = viewModel::setThemeMode,
                             onUpdateProfile = viewModel::updateProfile,
+                            onUpdateAvatar = viewModel::updateAvatar,
                             onExportData = { uri ->
                                 viewModel.exportData(
                                     uri = uri,

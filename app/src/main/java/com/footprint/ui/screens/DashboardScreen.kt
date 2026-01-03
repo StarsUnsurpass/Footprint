@@ -188,6 +188,12 @@ fun DashboardScreen(
                 }
             }
 
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import java.io.File
+
+// ...
+
             // Layer 4: Top Bar & Search Bar (Fixed & Clear)
             Column(
                 modifier = Modifier
@@ -204,18 +210,58 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
-                        Text(
-                            text = "Hi, ${state.userNickname}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "探索你的世界",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Avatar
+                        val avatarId = state.userAvatarId
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (File(avatarId).exists()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(File(avatarId))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Avatar",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                val icon = when(avatarId) {
+                                    "avatar_2" -> Icons.Default.AccountCircle
+                                    "avatar_3" -> Icons.Default.SmartToy
+                                    "avatar_4" -> Icons.Default.Fingerprint
+                                    else -> Icons.Default.Face
+                                }
+                                Icon(
+                                    icon, 
+                                    contentDescription = null, 
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+
+                        Column {
+                            Text(
+                                text = "Hi, ${state.userNickname}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "探索你的世界",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     
                     Box {

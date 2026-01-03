@@ -32,6 +32,7 @@ fun SettingsScreen(
     currentAvatarId: String,
     onThemeModeChange: (ThemeMode) -> Unit,
     onUpdateProfile: (String, String) -> Unit,
+    onUpdateAvatar: (Uri) -> Unit,
     onExportData: (Uri) -> Unit,
     onImportData: (Uri) -> Unit,
     onBack: () -> Unit
@@ -47,6 +48,11 @@ fun SettingsScreen(
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri -> uri?.let { onImportData(it) } }
+    )
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri -> uri?.let { onUpdateAvatar(it) } }
     )
 
     AppBackground {
@@ -81,7 +87,14 @@ fun SettingsScreen(
                     ProfileEditor(
                         nickname = currentNickname,
                         avatarId = currentAvatarId,
-                        onUpdate = onUpdateProfile
+                        onUpdate = onUpdateProfile,
+                        onPickImage = {
+                             imagePickerLauncher.launch(
+                                androidx.activity.result.PickVisualMediaRequest(
+                                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
+                            )
+                        }
                     )
                 }
 
@@ -232,8 +245,19 @@ fun ThemeOption(
             }
         }
         
+        import coil.compose.AsyncImage
+        import coil.request.ImageRequest
+        import java.io.File
+        
+        // ... imports ...
+        
         @Composable
-        fun ProfileEditor(nickname: String, avatarId: String, onUpdate: (String, String) -> Unit) {
+        fun ProfileEditor(
+            nickname: String, 
+            avatarId: String, 
+            onUpdate: (String, String) -> Unit,
+            onPickImage: () -> Unit
+        ) {
             var name by remember { mutableStateOf(nickname) }
             
             Surface(
@@ -252,8 +276,47 @@ fun ThemeOption(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("头像接入点", style = MaterialTheme.typography.bodyMedium)
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("头像接入点", style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = onPickImage) {
+                            Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("上传图片")
+                        }
+                    }
+                    
                     Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Custom Avatar Preview (if avatarId is a file path)
+                    if (File(avatarId).exists()) {
+                         Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .clickable { onPickImage() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(File(avatarId))
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "User Avatar",
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("预设头像", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+        
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         val avatars = listOf("avatar_1" to Icons.Default.Face, "avatar_2" to Icons.Default.AccountCircle, "avatar_3" to Icons.Default.SmartToy, "avatar_4" to Icons.Default.Fingerprint)
                         avatars.forEach { (id, icon) ->
@@ -276,5 +339,4 @@ fun ThemeOption(
                     }
                 }
             }
-        }
-        
+        }        

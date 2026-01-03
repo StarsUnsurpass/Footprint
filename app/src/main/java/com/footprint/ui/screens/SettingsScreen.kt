@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -234,7 +234,7 @@ fun ThemeOption(
         
         @Composable
         fun ProfileEditor(nickname: String, avatarId: String, onUpdate: (String, String) -> Unit) {
-            var name by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(nickname) }
+            var name by remember { mutableStateOf(nickname) }
             
             Surface(
                 shape = MaterialTheme.shapes.medium,

@@ -53,7 +53,11 @@ fun FootprintApp() {
 
     val tabOrder = listOf("dashboard", "map", "timeline", "planner")
 
-    FootprintTheme(themeMode = uiState.themeMode) {
+    FootprintTheme(
+        themeMode = uiState.themeMode,
+        style = uiState.themeStyle,
+        dominantMood = uiState.summary.monthly.dominantMood
+    ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 modifier = Modifier.then(
@@ -188,16 +192,27 @@ fun FootprintApp() {
                             onExportTrace = { navController.navigate("export_trace") },
                             onSettings = { navController.navigate("settings") },
                             onEditEntry = { editingEntry = it },
-                            onEditGoal = { editingGoal = it }
+                            onDeleteEntry = viewModel::deleteFootprint,
+                            onEditGoal = { editingGoal = it },
+                            onDeleteGoal = viewModel::deleteGoal,
+                            onMemoryLaneClick = { 
+                                navController.navigate("timeline") {
+                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
                         )
                     }
                     composable("settings") {
                         val context = LocalContext.current
                         SettingsScreen(
                             currentThemeMode = uiState.themeMode,
+                            currentThemeStyle = uiState.themeStyle,
                             currentNickname = uiState.userNickname,
                             currentAvatarId = uiState.userAvatarId,
                             onThemeModeChange = viewModel::setThemeMode,
+                            onThemeStyleChange = viewModel::setThemeStyle,
                             onUpdateProfile = viewModel::updateProfile,
                             onUpdateAvatar = viewModel::updateAvatar,
                             onExportData = { uri ->
@@ -235,7 +250,8 @@ fun FootprintApp() {
                             filterState = uiState.filterState,
                             onMoodFilterChange = viewModel::toggleMoodFilter,
                             onSearch = viewModel::updateSearch,
-                            onEditEntry = { editingEntry = it }
+                            onEditEntry = { editingEntry = it },
+                            onDeleteEntry = viewModel::deleteFootprint
                         )
                     }
                     composable("planner") {
@@ -244,7 +260,8 @@ fun FootprintApp() {
                             summary = uiState.summary,
                             onToggleGoal = viewModel::toggleGoal,
                             onAddGoal = { showGoalDialog = true },
-                            onEditGoal = { editingGoal = it }
+                            onEditGoal = { editingGoal = it },
+                            onDeleteGoal = viewModel::deleteGoal
                         )
                     }
                 }

@@ -7,12 +7,11 @@ import com.footprint.data.model.Mood
 import java.time.LocalDate
 
 object FootprintAnalytics {
-    fun buildSummary(entries: List<FootprintEntry>): FootprintSummary {
+    fun buildSummary(entries: List<FootprintEntry>, targetYear: Int = LocalDate.now().year): FootprintSummary {
         val now = LocalDate.now()
-        val currentYear = now.year
         val currentMonth = now.monthValue
 
-        val yearly = entries.filter { it.happenedOn.year == currentYear }
+        val yearly = entries.filter { it.happenedOn.year == targetYear }
         val monthly = yearly.filter { it.happenedOn.monthValue == currentMonth }
 
         return FootprintSummary(
@@ -25,12 +24,32 @@ object FootprintAnalytics {
 
     private fun calculateStats(entries: List<FootprintEntry>): Stats {
         if (entries.isEmpty()) return Stats()
+        
+        val totalDistance = entries.sumOf { it.distanceKm }
+        val energyAverage = entries.map { it.energyLevel }.average().takeIf { !it.isNaN() } ?: 0.0
+        
+        // Vitality Index calculation (0-100)
+        // Frequency: more entries = higher vitality (capped at 1 per day for this simple metric)
+        val uniqueDays = entries.map { it.happenedOn }.distinct().size
+        val frequencyScore = (uniqueDays * 5).coerceAtMost(40) // Int comparison is fine here
+        val energyScore = (energyAverage * 4).coerceAtMost(40.0)  // energyAverage is Double, needs 40.0
+        val distanceScore = (totalDistance / 2.0).coerceAtMost(20.0) // totalDistance is Double, needs 20.0
+        val vitalityIndex = (frequencyScore + energyScore + distanceScore).toInt()
+
+        val topLocations = entries.groupBy { it.location }
+            .mapValues { it.value.size }
+            .toList()
+            .sortedByDescending { it.second }
+            .take(3)
+
         return Stats(
             totalEntries = entries.size,
-            totalDistance = entries.sumOf { it.distanceKm },
+            totalDistance = totalDistance,
             uniquePlaces = entries.map { it.location }.distinct().size,
             dominantMood = entries.groupBy { it.mood }.maxByOrNull { it.value.size }?.key,
-            energyAverage = entries.map { it.energyLevel }.average().takeIf { !it.isNaN() } ?: 0.0
+            energyAverage = energyAverage,
+            vitalityIndex = vitalityIndex,
+            topLocations = topLocations
         )
     }
 

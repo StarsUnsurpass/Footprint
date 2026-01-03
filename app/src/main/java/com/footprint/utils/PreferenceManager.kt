@@ -31,4 +31,17 @@ class PreferenceManager(context: Context) {
     var avatarId: String
         get() = prefs.getString("user_avatar_id", "avatar_1") ?: "avatar_1"
         set(value) = prefs.edit().putString("user_avatar_id", value).apply()
+
+    var themeStyle: com.footprint.ui.theme.AppThemeStyle
+        get() {
+            val name = prefs.getString("theme_style", com.footprint.ui.theme.AppThemeStyle.CLASSIC.name)
+            return try {
+                com.footprint.ui.theme.AppThemeStyle.valueOf(name ?: com.footprint.ui.theme.AppThemeStyle.CLASSIC.name)
+            } catch (e: Exception) {
+                com.footprint.ui.theme.AppThemeStyle.CLASSIC
+            }
+        }
+        set(value) {
+            prefs.edit().putString("theme_style", value.name).apply()
+        }
 }

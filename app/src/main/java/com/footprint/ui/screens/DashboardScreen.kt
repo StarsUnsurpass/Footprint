@@ -41,6 +41,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import java.io.File
+import com.footprint.ui.components.SwipeableItem
 import com.footprint.data.model.Mood
 import com.footprint.data.model.FootprintEntry
 import com.footprint.ui.state.FootprintUiState
@@ -72,7 +73,10 @@ fun DashboardScreen(
     onExportTrace: () -> Unit,
     onSettings: () -> Unit,
     onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit,
-    onEditGoal: (com.footprint.data.model.TravelGoal) -> Unit
+    onDeleteEntry: (com.footprint.data.model.FootprintEntry) -> Unit,
+    onEditGoal: (com.footprint.data.model.TravelGoal) -> Unit,
+    onDeleteGoal: (com.footprint.data.model.TravelGoal) -> Unit,
+    onMemoryLaneClick: () -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf(state.filterState.searchQuery) }
     val df = remember { DecimalFormat("0.0") }
@@ -112,6 +116,15 @@ fun DashboardScreen(
                     )
                 }
 
+                // Memory Lane (Personalized)
+                item {
+                    MemoryLaneSection(
+                        memory = state.randomMemory,
+                        quote = state.memoryQuote,
+                        onClick = onMemoryLaneClick
+                    )
+                }
+
                 // History Trace Action
                 item {
                     TelegramActionCard(
@@ -139,9 +152,18 @@ fun DashboardScreen(
                 }
 
                 // Sections (Use visibleEntries for keyword filtering)
-                recentFootprintsSection(entries = state.visibleEntries, onCreateGoal = onCreateGoal, onEditEntry = onEditEntry)
+                recentFootprintsSection(
+                    entries = state.visibleEntries, 
+                    onCreateGoal = onCreateGoal, 
+                    onEditEntry = onEditEntry,
+                    onDeleteEntry = onDeleteEntry
+                )
                 
-                goalsListSection(goals = state.goals, onEditGoal = onEditGoal)
+                goalsListSection(
+                    goals = state.goals, 
+                    onEditGoal = onEditGoal,
+                    onDeleteGoal = onDeleteGoal
+                )
             }
 
             // Layer 2: Transparent Dismiss Overlay (only when searching)
@@ -210,7 +232,11 @@ fun DashboardScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSettings() }
+                            .padding(4.dp)
                     ) {
                         // Avatar
                         val avatarId = state.userAvatarId
@@ -434,7 +460,8 @@ fun StatisticsSection(
             )
             StatItem(
                 label = "活力",
-                value = state.summary.monthly.energyAverage.takeIf { it > 0 }?.let { df.format(it) } ?: "-",
+                value = "${state.summary.monthly.vitalityIndex}",
+                unit = "指数",
                 modifier = Modifier.weight(1f),
                 onClick = { onStatClick(StatType.ENERGY) }
             )
@@ -444,6 +471,82 @@ fun StatisticsSection(
                 modifier = Modifier.weight(1f),
                 onClick = { onStatClick(StatType.MOOD) }
             )
+        }
+    }
+}
+
+@Composable
+fun MemoryLaneSection(
+    memory: FootprintEntry?, 
+    quote: String?,
+    onClick: () -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            "那年今日 / 时光碎片", 
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth().clickable { onClick() }
+        ) {
+            if (memory != null) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(memory.mood.color.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(memory.mood.label.take(1), fontSize = 24.sp)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = memory.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val yearsAgo = LocalDate.now().year - memory.happenedOn.year
+                        Text(
+                            text = "${yearsAgo}年前的今天 · ${memory.location}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, null, tint = MaterialTheme.colorScheme.secondary)
+                }
+            } else {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        Icons.Default.AutoAwesome, 
+                        null, 
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Text(
+                        text = quote ?: "记录当下的每一步，让未来有迹可循。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
     }
 }
@@ -718,7 +821,8 @@ private fun YearNavigator(year: Int, onBack: () -> Unit, onForward: () -> Unit) 
 
 private fun LazyListScope.goalsListSection(
     goals: List<com.footprint.data.model.TravelGoal>,
-    onEditGoal: (com.footprint.data.model.TravelGoal) -> Unit
+    onEditGoal: (com.footprint.data.model.TravelGoal) -> Unit,
+    onDeleteGoal: (com.footprint.data.model.TravelGoal) -> Unit
 ) {
     if (goals.isEmpty()) return
     
@@ -733,36 +837,41 @@ private fun LazyListScope.goalsListSection(
         )
     }
     items(goals) { goal ->
-        Surface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clickable { onEditGoal(goal) }
+        SwipeableItem(
+            onEdit = { onEditGoal(goal) },
+            onDelete = { onDeleteGoal(goal) }
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clickable { onEditGoal(goal) }
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(if (goal.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        if (goal.isCompleted) Icons.Default.Check else Icons.Default.Flag,
-                        null,
-                        tint = if (goal.isCompleted) Color.White else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(goal.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("${goal.targetLocation} · ${goal.targetDate.format(formatter)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (goal.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (goal.isCompleted) Icons.Default.Check else Icons.Default.Flag,
+                            null,
+                            tint = if (goal.isCompleted) Color.White else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(goal.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text("${goal.targetLocation} · ${goal.targetDate.format(formatter)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
@@ -772,7 +881,8 @@ private fun LazyListScope.goalsListSection(
 private fun LazyListScope.recentFootprintsSection(
     entries: List<com.footprint.data.model.FootprintEntry>, 
     onCreateGoal: () -> Unit,
-    onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit
+    onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit,
+    onDeleteEntry: (com.footprint.data.model.FootprintEntry) -> Unit
 ) {
     if (entries.isEmpty()) return
     val formatter = DateTimeFormatter.ofPattern("MM-dd")
@@ -794,7 +904,12 @@ private fun LazyListScope.recentFootprintsSection(
         }
     }
     items(entries.take(5)) { entry ->
-        TelegramEntryItem(entry, formatter, { onEditEntry(entry) })
+        SwipeableItem(
+            onEdit = { onEditEntry(entry) },
+            onDelete = { onDeleteEntry(entry) }
+        ) {
+            TelegramEntryItem(entry, formatter, { onEditEntry(entry) })
+        }
     }
 }
 

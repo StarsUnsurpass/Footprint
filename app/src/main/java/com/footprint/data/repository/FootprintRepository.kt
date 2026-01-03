@@ -70,6 +70,8 @@ class FootprintRepository(
         travelGoalDao.upsert(goal.toEntity())
     }
 
+    suspend fun deleteGoal(id: Long) = travelGoalDao.deleteById(id)
+
     suspend fun updateGoalCompletion(goal: TravelGoal, completed: Boolean) {
         travelGoalDao.upsert(goal.copy(isCompleted = completed).toEntity())
     }

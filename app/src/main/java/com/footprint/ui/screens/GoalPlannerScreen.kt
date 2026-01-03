@@ -27,6 +27,8 @@ import com.footprint.ui.components.AppBackground
 import com.footprint.ui.components.GlassMorphicCard
 import java.time.format.DateTimeFormatter
 
+import com.footprint.ui.components.SwipeableItem
+
 @Composable
 fun GoalPlannerScreen(
     modifier: Modifier = Modifier,
@@ -34,7 +36,8 @@ fun GoalPlannerScreen(
     summary: FootprintSummary,
     onToggleGoal: (TravelGoal) -> Unit,
     onAddGoal: () -> Unit,
-    onEditGoal: (TravelGoal) -> Unit
+    onEditGoal: (TravelGoal) -> Unit,
+    onDeleteGoal: (TravelGoal) -> Unit
 ) {
     val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
     
@@ -110,12 +113,17 @@ fun GoalPlannerScreen(
                 }
 
                 items(goals) { goal ->
-                    TelegramGoalItem(
-                        goal = goal,
-                        formatter = formatter,
-                        onToggle = { onToggleGoal(goal) },
-                        onEdit = { onEditGoal(goal) }
-                    )
+                    SwipeableItem(
+                        onEdit = { onEditGoal(goal) },
+                        onDelete = { onDeleteGoal(goal) }
+                    ) {
+                        TelegramGoalItem(
+                            goal = goal,
+                            formatter = formatter,
+                            onToggle = { onToggleGoal(goal) },
+                            onEdit = { onEditGoal(goal) }
+                        )
+                    }
                 }
             }
         }

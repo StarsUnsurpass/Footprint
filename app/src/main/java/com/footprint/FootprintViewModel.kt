@@ -40,6 +40,7 @@ class FootprintViewModel(
     private val searchQuery = MutableStateFlow("")
     private val yearFilter = MutableStateFlow(LocalDate.now().year)
     private val themeMode = MutableStateFlow(preferenceManager.themeMode)
+    private val themeStyle = MutableStateFlow(preferenceManager.themeStyle)
     private val nickname = MutableStateFlow(preferenceManager.nickname)
     private val avatarId = MutableStateFlow(preferenceManager.avatarId)
 
@@ -50,6 +51,7 @@ class FootprintViewModel(
         searchQuery,
         yearFilter,
         themeMode,
+        themeStyle,
         nickname,
         avatarId
     ) { args ->
@@ -61,11 +63,11 @@ class FootprintViewModel(
         val search = args[3] as String
         val year = args[4] as Int
         val theme = args[5] as ThemeMode
-        val nk = args[6] as String
-        val av = args[7] as String
+        val style = args[6] as com.footprint.ui.theme.AppThemeStyle
+        val nk = args[7] as String
+        val av = args[8] as String
 
         val visibleEntries = entries
-            .filter { if (search.isBlank()) it.happenedOn.year == year else true }
             .filter { mood == null || it.mood == mood }
             .filter {
                 if (search.isBlank()) true
@@ -76,21 +78,53 @@ class FootprintViewModel(
                         it.tags.any { tag -> tag.lowercase().contains(queryText) }
                 }
             }
+        
+        // Memory of the day: "On This Day" from previous years
+        val today = LocalDate.now()
+        val historicalMemories = entries.filter { 
+            it.happenedOn.monthValue == today.monthValue && 
+            it.happenedOn.dayOfMonth == today.dayOfMonth &&
+            it.happenedOn.year < today.year
+        }
+        
+        val randomMemory = if (historicalMemories.isNotEmpty()) {
+            historicalMemories.random()
+        } else null
+
+        val memoryQuote = if (randomMemory == null) {
+            val quotes = listOf(
+                "所有的昨日，都是为了迎接更好的明天。",
+                "记忆是阵阵花香，我们说好永远不能忘。",
+                "时光荏苒，唯有足迹证明我们曾热烈地活过。",
+                "那些被翻阅过的日子，都成了生命里的光。",
+                "生活不在于走了多少路，而在于留下了多少回忆。",
+                "去发现，去记录，去成为更好的自己。",
+                "每一个今天，都是未来最想回到的昨天。"
+            )
+            quotes[(today.toEpochDay() % quotes.size).toInt()]
+        } else null
+
         FootprintUiState(
             entries = entries,
             visibleEntries = visibleEntries,
             goals = goals,
-            summary = FootprintAnalytics.buildSummary(entries),
+            summary = FootprintAnalytics.buildSummary(entries, year),
             filterState = FilterState(mood, search, year),
             themeMode = theme,
+            themeStyle = style,
             userNickname = nk,
             userAvatarId = av,
+            randomMemory = randomMemory,
+            memoryQuote = memoryQuote,
             isLoading = false
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = FootprintUiState(themeMode = preferenceManager.themeMode)
+        initialValue = FootprintUiState(
+            themeMode = preferenceManager.themeMode,
+            themeStyle = preferenceManager.themeStyle
+        )
     )
 
     init {
@@ -159,6 +193,11 @@ class FootprintViewModel(
     fun setThemeMode(mode: ThemeMode) {
         themeMode.value = mode
         preferenceManager.themeMode = mode
+    }
+
+    fun setThemeStyle(style: com.footprint.ui.theme.AppThemeStyle) {
+        themeStyle.value = style
+        preferenceManager.themeStyle = style
     }
 
     fun toggleMoodFilter(mood: Mood?) {
@@ -245,6 +284,12 @@ class FootprintViewModel(
     fun toggleGoal(goal: TravelGoal) {
         viewModelScope.launch {
             repository.updateGoalCompletion(goal, !goal.isCompleted)
+        }
+    }
+
+    fun deleteGoal(goal: TravelGoal) {
+        viewModelScope.launch {
+            repository.deleteGoal(goal.id)
         }
     }
 

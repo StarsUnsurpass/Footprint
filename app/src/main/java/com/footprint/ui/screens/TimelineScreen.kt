@@ -29,6 +29,8 @@ import com.footprint.ui.components.AppBackground
 import com.footprint.ui.components.GlassMorphicCard
 import java.time.format.DateTimeFormatter
 
+import com.footprint.ui.components.SwipeableItem
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TimelineScreen(
@@ -37,7 +39,8 @@ fun TimelineScreen(
     filterState: com.footprint.ui.state.FilterState,
     onMoodFilterChange: (Mood?) -> Unit,
     onSearch: (String) -> Unit,
-    onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit
+    onEditEntry: (com.footprint.data.model.FootprintEntry) -> Unit,
+    onDeleteEntry: (com.footprint.data.model.FootprintEntry) -> Unit
 ) {
     val grouped = entries.groupBy { it.happenedOn.withDayOfMonth(1) }
         .toSortedMap(compareByDescending { it })
@@ -92,12 +95,17 @@ fun TimelineScreen(
                         }
                     }
                     items(items) { entry ->
-                        TelegramEntryItem(
-                            entry = entry, 
-                            dateFormatter = formatter, 
-                            timeFormatter = timeFormatter,
-                            onClick = { onEditEntry(entry) }
-                        )
+                        SwipeableItem(
+                            onEdit = { onEditEntry(entry) },
+                            onDelete = { onDeleteEntry(entry) }
+                        ) {
+                            TelegramEntryItem(
+                                entry = entry, 
+                                dateFormatter = formatter, 
+                                timeFormatter = timeFormatter,
+                                onClick = { onEditEntry(entry) }
+                            )
+                        }
                     }
                 }
             }

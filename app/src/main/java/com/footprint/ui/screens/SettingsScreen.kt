@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -31,9 +32,11 @@ import com.footprint.ui.components.AppBackground
 @Composable
 fun SettingsScreen(
     currentThemeMode: ThemeMode,
+    currentThemeStyle: com.footprint.ui.theme.AppThemeStyle,
     currentNickname: String,
     currentAvatarId: String,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onThemeStyleChange: (com.footprint.ui.theme.AppThemeStyle) -> Unit,
     onUpdateProfile: (String, String) -> Unit,
     onUpdateAvatar: (Uri) -> Unit,
     onExportData: (Uri) -> Unit,
@@ -108,10 +111,19 @@ fun SettingsScreen(
                     SettingsSectionTitle("外观定制")
                 }
                 item {
-                    ThemeModeSelector(
-                        selectedMode = currentThemeMode,
-                        onModeSelected = onThemeModeChange
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("系统模式", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                        ThemeModeSelector(
+                            selectedMode = currentThemeMode,
+                            onModeSelected = onThemeModeChange
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("视觉风格", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                        ThemeStyleSelector(
+                            selectedStyle = currentThemeStyle,
+                            onStyleSelected = onThemeStyleChange
+                        )
+                    }
                 }
 
                 item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
@@ -216,6 +228,85 @@ fun ThemeModeSelector(
                 selected = selectedMode == ThemeMode.DARK,
                 onClick = { onModeSelected(ThemeMode.DARK) }
             )
+        }
+    }
+}
+
+@Composable
+fun ThemeStyleSelector(
+    selectedStyle: com.footprint.ui.theme.AppThemeStyle,
+    onStyleSelected: (com.footprint.ui.theme.AppThemeStyle) -> Unit
+) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            ThemeStyleOption(
+                title = "智能自适应 (随主情绪变化)",
+                icon = Icons.Default.AutoAwesome,
+                selected = selectedStyle == com.footprint.ui.theme.AppThemeStyle.AUTO,
+                onClick = { onStyleSelected(com.footprint.ui.theme.AppThemeStyle.AUTO) }
+            )
+            ThemeStyleOption(
+                title = "经典蓝调",
+                icon = Icons.Default.Palette,
+                selected = selectedStyle == com.footprint.ui.theme.AppThemeStyle.CLASSIC,
+                onClick = { onStyleSelected(com.footprint.ui.theme.AppThemeStyle.CLASSIC) }
+            )
+            ThemeStyleOption(
+                title = "赛博朋克",
+                icon = Icons.Default.ElectricBolt,
+                selected = selectedStyle == com.footprint.ui.theme.AppThemeStyle.CYBERPUNK,
+                onClick = { onStyleSelected(com.footprint.ui.theme.AppThemeStyle.CYBERPUNK) }
+            )
+            ThemeStyleOption(
+                title = "森林氧吧",
+                icon = Icons.Default.Forest,
+                selected = selectedStyle == com.footprint.ui.theme.AppThemeStyle.FOREST,
+                onClick = { onStyleSelected(com.footprint.ui.theme.AppThemeStyle.FOREST) }
+            )
+            ThemeStyleOption(
+                title = "撒哈拉之光",
+                icon = Icons.Default.WbSunny,
+                selected = selectedStyle == com.footprint.ui.theme.AppThemeStyle.SAHARA,
+                onClick = { onStyleSelected(com.footprint.ui.theme.AppThemeStyle.SAHARA) }
+            )
+        }
+    }
+}
+
+@Composable
+fun ThemeStyleOption(
+    title: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon, 
+            contentDescription = null, 
+            modifier = Modifier.size(20.dp),
+            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.weight(1f)
+        )
+        if (selected) {
+            Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
     }
 }

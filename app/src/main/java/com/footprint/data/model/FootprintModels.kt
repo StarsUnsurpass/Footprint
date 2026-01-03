@@ -48,7 +48,9 @@ data class Stats(
     val totalDistance: Double = 0.0,
     val uniquePlaces: Int = 0,
     val dominantMood: Mood? = null,
-    val energyAverage: Double = 0.0
+    val energyAverage: Double = 0.0,
+    val vitalityIndex: Int = 0,
+    val topLocations: List<Pair<String, Int>> = emptyList()
 )
 
 data class PeriodStats(
